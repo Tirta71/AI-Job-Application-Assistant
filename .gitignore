@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+npm-debug.log*
+.dev-logs/
+
+server/credentials/google-service-account.json
+server/storage/templates/*
+server/storage/generated/*
+server/storage/tracker/*
+
+!server/storage/templates/.gitkeep
+!server/storage/templates/tirta_cv_fixed_slot_template.docx
+!server/storage/generated/.gitkeep
+!server/storage/tracker/.gitkeep

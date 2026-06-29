@@ -1,0 +1,28 @@
+{
+  "name": "ai-job-application-assistant-server",
+  "version": "1.0.0",
+  "description": "Backend API for AI Job Application Assistant",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@mozilla/readability": "^0.6.0",
+    "axios": "^1.18.1",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "docxtemplater": "^3.58.2",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^173.0.0",
+    "jsdom": "^29.1.1",
+    "multer": "^2.2.0",
+    "pizzip": "^3.1.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
+}
