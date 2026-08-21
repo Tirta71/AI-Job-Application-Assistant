@@ -5,8 +5,10 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "dev": "nodemon --ignore storage src/index.js",
+    "start": "node src/index.js",
+    "auto-apply": "node src/workers/browserAct.worker.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

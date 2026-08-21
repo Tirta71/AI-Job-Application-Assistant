@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApplyMate AI - Calm Theme Preview</title>
+    <style>
+      :root {
+        --ink: #182230;
+        --ink-soft: #344054;
+        --muted: #667085;
+        --paper: #fbfcf8;
+        --surface: #ffffff;
+        --surface-soft: #f6faf7;
+        --mint: #dff4ec;
+        --mint-strong: #bfe8dc;
+        --teal: #0f766e;
+        --teal-dark: #115e59;
+        --indigo: #4f46e5;
+        --coral: #f9734d;
+        --amber: #b7791f;
+        --green: #16803c;
+        --red: #b42318;
+        --line: #dce7e2;
+        --shadow: 0 16px 44px rgba(24, 34, 48, 0.08);
+        --radius: 18px;
+        --radius-sm: 12px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(135deg, #fbfcf8 0%, #eef8f4 48%, #f8f3ec 100%);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .workspace {
+        width: min(1180px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 22px 0 36px;
+      }
+
+      .top-nav {
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        border: 1px solid rgba(220, 231, 226, 0.9);
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: 0 12px 32px rgba(24, 34, 48, 0.06);
+        padding: 10px 12px 10px 16px;
+        backdrop-filter: blur(16px);
+      }
+
+      .brand,
+      .brand-mark,
+      .nav-links,
+      .profile-chip,
+      .hero-actions,
+      .assistant-head,
+      .queue-toolbar,
+      .row-actions,
+      .pagination,
+      .step,
+      .setup-item,
+      .activity-item {
+        display: flex;
+        align-items: center;
+      }
+
+      .brand {
+        gap: 10px;
+        min-width: 230px;
+      }
+
+      .brand-mark {
+        width: 42px;
+        height: 42px;
+        justify-content: center;
+        border-radius: 14px;
+        background: var(--ink);
+        color: #ffffff;
+        font-weight: 950;
+      }
+
+      .brand strong,
+      .brand span,
+      .metric strong,
+      .metric span,
+      .page-copy span,
+      .panel-heading h2,
+      .panel-heading p,
+      .job-cell strong,
+      .job-cell span,
+      .step-copy strong,
+      .step-copy span,
+      .setup-copy strong,
+      .setup-copy span,
+      .activity-copy strong,
+      .activity-copy span {
+        display: block;
+      }
+
+      .brand strong {
+        font-size: 0.98rem;
+        letter-spacing: 0;
+      }
+
+      .brand span {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 760;
+      }
+
+      .nav-links {
+        justify-content: center;
+        gap: 4px;
+        flex: 1;
+      }
+
+      .nav-links a {
+        border-radius: 999px;
+        color: var(--ink-soft);
+        padding: 9px 12px;
+        font-size: 0.86rem;
+        font-weight: 850;
+        text-decoration: none;
+      }
+
+      .nav-links a.active {
+        background: var(--mint);
+        color: var(--teal-dark);
+      }
+
+      .profile-chip {
+        justify-content: flex-end;
+        gap: 9px;
+        min-width: 190px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        padding: 6px 9px 6px 6px;
+      }
+
+      .profile-avatar {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: #fff0e8;
+        color: var(--coral);
+        font-size: 0.82rem;
+        font-weight: 950;
+      }
+
+      .profile-chip strong {
+        font-size: 0.82rem;
+      }
+
+      .profile-chip span {
+        display: block;
+        margin-top: 1px;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 760;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(320px, 0.7fr);
+        gap: 16px;
+        margin-top: 18px;
+      }
+
+      .hero-panel,
+      .assistant-panel,
+      .metric,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: var(--shadow);
+      }
+
+      .hero-panel {
+        min-height: 300px;
+        display: grid;
+        align-content: space-between;
+        overflow: hidden;
+        padding: 28px;
+      }
+
+      .page-copy {
+        max-width: 640px;
+      }
+
+      .page-copy span {
+        color: var(--teal);
+        font-size: 0.78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .page-copy h1 {
+        margin: 8px 0 10px;
+        max-width: 680px;
+        color: #101828;
+        font-size: clamp(2rem, 5vw, 4.35rem);
+        letter-spacing: 0;
+        line-height: 0.98;
+      }
+
+      .page-copy p {
+        margin: 0;
+        max-width: 600px;
+        color: var(--muted);
+        font-size: 1rem;
+        line-height: 1.62;
+      }
+
+      .hero-actions {
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+      }
+
+      .primary-button,
+      .secondary-button,
+      .soft-button {
+        min-height: 42px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        cursor: default;
+        padding: 0 16px;
+        font-size: 0.9rem;
+        font-weight: 920;
+      }
+
+      .primary-button {
+        background: var(--teal);
+        color: #ffffff;
+      }
+
+      .secondary-button {
+        border-color: var(--line);
+        background: #ffffff;
+        color: var(--ink-soft);
+      }
+
+      .soft-button {
+        background: #eef4ff;
+        color: #1d4ed8;
+      }
+
+      .hero-footer {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 30px;
+      }
+
+      .hero-note {
+        border: 1px solid rgba(15, 118, 110, 0.16);
+        border-radius: var(--radius-sm);
+        background: var(--surface-soft);
+        padding: 12px;
+      }
+
+      .hero-note strong {
+        display: block;
+        color: var(--ink);
+        font-size: 0.9rem;
+      }
+
+      .hero-note span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.4;
+      }
+
+      .assistant-panel {
+        display: grid;
+        align-content: start;
+        gap: 16px;
+        padding: 20px;
+      }
+
+      .assistant-head {
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .assistant-face {
+        width: 54px;
+        height: 54px;
+        display: grid;
+        place-items: center;
+        border-radius: 20px;
+        background: var(--mint);
+        color: var(--teal-dark);
+        font-weight: 950;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 0 10px;
+        font-size: 0.76rem;
+        font-weight: 950;
+      }
+
+      .status-pill.running {
+        background: #fff7e6;
+        color: var(--amber);
+      }
+
+      .status-pill.ready {
+        background: #e9f7ef;
+        color: var(--green);
+      }
+
+      .status-pill.review {
+        background: #fff0e8;
+        color: var(--coral);
+      }
+
+      .assistant-title h2 {
+        margin: 0;
+        color: #101828;
+        font-size: 1.26rem;
+        letter-spacing: 0;
+      }
+
+      .assistant-title p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+      }
+
+      .mission-card {
+        border-radius: 16px;
+        background: #f8fcfa;
+        padding: 14px;
+      }
+
+      .mission-card span {
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .mission-card strong {
+        display: block;
+        margin-top: 6px;
+        color: var(--ink);
+        font-size: 1rem;
+      }
+
+      .mission-card p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+
+      .progress-track {
+        height: 10px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e4eee9;
+      }
+
+      .progress-track span {
+        display: block;
+        width: 64%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--teal);
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .metric {
+        min-height: 126px;
+        display: grid;
+        align-content: space-between;
+        padding: 16px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        margin-top: 10px;
+        color: #101828;
+        font-size: 2.15rem;
+        line-height: 1;
+      }
+
+      .metric small {
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 780;
+      }
+
+      .content-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.34fr) minmax(330px, 0.66fr);
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .panel {
+        min-width: 0;
+        padding: 18px;
+      }
+
+      .panel-heading,
+      .queue-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .panel-heading {
+        margin-bottom: 14px;
+      }
+
+      .panel-heading h2 {
+        margin: 0;
+        color: #101828;
+        font-size: 1.1rem;
+        letter-spacing: 0;
+      }
+
+      .panel-heading p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+
+      .queue-toolbar {
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .search {
+        width: min(100%, 330px);
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--ink);
+        padding: 0 14px;
+        outline: none;
+      }
+
+      .queue-table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        min-width: 800px;
+        border-collapse: separate;
+        border-spacing: 0 8px;
+      }
+
+      th {
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 950;
+        padding: 0 10px 2px;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      td {
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        background: #ffffff;
+        padding: 12px 10px;
+        vertical-align: middle;
+      }
+
+      td:first-child {
+        border-left: 1px solid var(--line);
+        border-radius: 14px 0 0 14px;
+      }
+
+      td:last-child {
+        min-width: 218px;
+        border-right: 1px solid var(--line);
+        border-radius: 0 14px 14px 0;
+      }
+
+      .job-cell strong {
+        color: var(--ink);
+        font-size: 0.92rem;
+      }
+
+      .job-cell span {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 760;
+      }
+
+      .priority {
+        display: inline-flex;
+        border-radius: 999px;
+        background: var(--mint);
+        color: var(--teal-dark);
+        padding: 6px 9px;
+        font-size: 0.76rem;
+        font-weight: 950;
+      }
+
+      .row-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      .row-actions button {
+        width: 100%;
+        min-height: 34px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: #eef4ff;
+        color: #1d4ed8;
+        padding: 0 8px;
+        font-size: 0.78rem;
+        font-weight: 900;
+      }
+
+      .row-actions button.muted {
+        background: #f3f6f6;
+        color: var(--muted);
+      }
+
+      .pagination {
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 0.84rem;
+        font-weight: 850;
+      }
+
+      .pagination div {
+        display: flex;
+        gap: 8px;
+      }
+
+      .pagination button {
+        min-height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--ink-soft);
+        padding: 0 12px;
+        font-size: 0.82rem;
+        font-weight: 900;
+      }
+
+      .side-stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      .steps {
+        display: grid;
+        gap: 12px;
+      }
+
+      .step {
+        gap: 10px;
+        align-items: flex-start;
+      }
+
+      .step-index {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 34px;
+        border-radius: 999px;
+        background: #eef7f4;
+        color: var(--teal-dark);
+        font-size: 0.8rem;
+        font-weight: 950;
+      }
+
+      .step.active .step-index {
+        background: var(--teal);
+        color: #ffffff;
+      }
+
+      .step-copy strong {
+        color: var(--ink);
+        font-size: 0.9rem;
+      }
+
+      .step-copy span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.45;
+      }
+
+      .setup-list,
+      .activity-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .setup-item,
+      .activity-item {
+        gap: 10px;
+        align-items: flex-start;
+      }
+
+      .check {
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 28px;
+        border-radius: 999px;
+        background: var(--mint);
+        color: var(--teal-dark);
+        font-size: 0.78rem;
+        font-weight: 950;
+      }
+
+      .setup-copy strong,
+      .activity-copy strong {
+        color: var(--ink);
+        font-size: 0.88rem;
+      }
+
+      .setup-copy span,
+      .activity-copy span {
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        line-height: 1.42;
+      }
+
+      @media (max-width: 1060px) {
+        .top-nav,
+        .hero-grid,
+        .content-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+
+        .brand,
+        .profile-chip {
+          min-width: 0;
+        }
+
+        .nav-links {
+          justify-content: flex-start;
+          overflow-x: auto;
+        }
+
+        .metrics,
+        .hero-footer {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 700px) {
+        .workspace {
+          width: min(100% - 20px, 1180px);
+          padding-top: 10px;
+        }
+
+        .hero-panel,
+        .assistant-panel,
+        .panel {
+          padding: 16px;
+          border-radius: 16px;
+        }
+
+        .metrics,
+        .hero-footer {
+          grid-template-columns: 1fr;
+        }
+
+        .panel-heading,
+        .queue-toolbar,
+        .pagination {
+          display: grid;
+        }
+
+        .search,
+        .pagination div {
+          width: 100%;
+        }
+
+        .pagination button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="workspace">
+      <header class="top-nav">
+        <div class="brand">
+          <div class="brand-mark">AM</div>
+          <div>
+            <strong>ApplyMate AI</strong>
+            <span>Job search autopilot</span>
+          </div>
+        </div>
+
+        <nav class="nav-links">
+          <a class="active" href="#">Home</a>
+          <a href="#">Jelajahi</a>
+          <a href="#">Lamaran</a>
+          <a href="#">Auto Apply</a>
+          <a href="#">Answer Bank</a>
+        </nav>
+
+        <div class="profile-chip">
+          <div class="profile-avatar">T</div>
+          <div>
+            <strong>Tirta</strong>
+            <span>CV siap dipakai</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="hero-grid">
+        <div class="hero-panel">
+          <div class="page-copy">
+            <span>Calm AI Assistant Theme</span>
+            <h1>Apply kerja terasa lebih ringan.</h1>
+            <p>
+              Lowongan tetap rapi, auto apply tetap terukur, tapi tampilannya lebih hangat seperti workspace pribadi
+              yang bantu kamu maju satu lamaran demi satu lamaran.
+            </p>
+            <div class="hero-actions">
+              <button class="primary-button">Run Auto Apply</button>
+              <button class="secondary-button">Scrape Lowongan</button>
+              <button class="soft-button">Review Answer Bank</button>
+            </div>
+          </div>
+
+          <div class="hero-footer">
+            <div class="hero-note">
+              <strong>31 siap dikirim</strong>
+              <span>Sudah lolos filter role, lokasi, dan stack portfolio.</span>
+            </div>
+            <div class="hero-note">
+              <strong>4 butuh jawaban</strong>
+              <span>Screening question baru ditandai sebelum apply berikutnya.</span>
+            </div>
+            <div class="hero-note">
+              <strong>18 terkirim</strong>
+              <span>Lamaran terbaru tampil paling atas dengan waktu apply.</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="assistant-panel">
+          <div class="assistant-head">
+            <div class="assistant-face">AI</div>
+            <span class="status-pill running">Working</span>
+          </div>
+          <div class="assistant-title">
+            <h2>Assistant sedang apply</h2>
+            <p>JobStreet step questions, 6 field terisi. Menunggu validasi setelah Continue.</p>
+          </div>
+          <div class="mission-card">
+            <span>Current job</span>
+            <strong>Frontend React Developer at Fintech Growth</strong>
+            <p>Stage: Answer employer questions. Action terakhir: Clicked Continue.</p>
+          </div>
+          <div class="progress-track" aria-label="Auto apply progress">
+            <span></span>
+          </div>
+          <button class="secondary-button">Lihat Detail Progress</button>
+        </aside>
+      </section>
+
+      <section class="metrics">
+        <div class="metric">
+          <div>
+            <span>Lowongan masuk</span>
+            <strong>128</strong>
+          </div>
+          <small>42 baru dari scraping hari ini</small>
+        </div>
+        <div class="metric">
+          <div>
+            <span>Siap apply</span>
+            <strong>31</strong>
+          </div>
+          <small>Prioritas high dan medium</small>
+        </div>
+        <div class="metric">
+          <div>
+            <span>Applied</span>
+            <strong>18</strong>
+          </div>
+          <small>7 terkirim minggu ini</small>
+        </div>
+        <div class="metric">
+          <div>
+            <span>Needs input</span>
+            <strong>4</strong>
+          </div>
+          <small>Pertanyaan form perlu dipilih</small>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel-heading">
+            <div>
+              <h2>Jelajahi Lowongan</h2>
+              <p>Table tetap padat, tapi barisnya lebih soft dan tombol aksi sudah sama rata.</p>
+            </div>
+            <span class="status-pill ready">10 per halaman</span>
+          </div>
+
+          <div class="queue-toolbar">
+            <input class="search" value="React, Laravel, Remote" aria-label="Cari lowongan" />
+            <button class="secondary-button">Filter Siap Apply</button>
+          </div>
+
+          <div class="queue-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Lowongan</th>
+                  <th>Perusahaan</th>
+                  <th>Prioritas</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="job-cell">
+                    <strong>Frontend React Developer</strong>
+                    <span>Jakarta Hybrid, React, TypeScript</span>
+                  </td>
+                  <td>Fintech Growth</td>
+                  <td><span class="priority">High</span></td>
+                  <td><span class="status-pill ready">Siap Apply</span></td>
+                  <td>
+                    <div class="row-actions">
+                      <button>Detail</button>
+                      <button>Favorit</button>
+                      <button>Queue</button>
+                      <button class="muted">Archive</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="job-cell">
+                    <strong>Junior Fullstack Engineer</strong>
+                    <span>Remote Indonesia, Laravel, MySQL</span>
+                  </td>
+                  <td>Product Studio</td>
+                  <td><span class="priority">Medium</span></td>
+                  <td><span class="status-pill review">Review</span></td>
+                  <td>
+                    <div class="row-actions">
+                      <button>Detail</button>
+                      <button>Favorit</button>
+                      <button>Queue</button>
+                      <button class="muted">Archive</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="job-cell">
+                    <strong>Web Application Developer</strong>
+                    <span>Bekasi Onsite, PHP, API Integration</span>
+                  </td>
+                  <td>Enterprise Systems</td>
+                  <td><span class="priority">High</span></td>
+                  <td><span class="status-pill ready">Siap Apply</span></td>
+                  <td>
+                    <div class="row-actions">
+                      <button>Detail</button>
+                      <button>Favorit</button>
+                      <button>Queue</button>
+                      <button class="muted">Archive</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <span>1-10 dari 128 data</span>
+            <div>
+              <button>Prev</button>
+              <button>Next</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side-stack">
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Auto Apply Timeline</h2>
+                <p>Bahasanya dibuat lebih manusiawi saat proses berjalan.</p>
+              </div>
+            </div>
+            <div class="steps">
+              <div class="step">
+                <div class="step-index">1</div>
+                <div class="step-copy">
+                  <strong>Buka halaman lowongan</strong>
+                  <span>Halaman job detail berhasil dibaca.</span>
+                </div>
+              </div>
+              <div class="step active">
+                <div class="step-index">2</div>
+                <div class="step-copy">
+                  <strong>Jawab screening question</strong>
+                  <span>Scrum Agile: Yes, Education: S1, React: 1-3 years.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-index">3</div>
+                <div class="step-copy">
+                  <strong>Review dan submit</strong>
+                  <span>Submit berjalan setelah semua required field aman.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Setup Kesiapan</h2>
+                <p>Lebih terasa seperti checklist produk, bukan form teknis panjang.</p>
+              </div>
+            </div>
+            <div class="setup-list">
+              <div class="setup-item">
+                <div class="check">OK</div>
+                <div class="setup-copy">
+                  <strong>CV path tersimpan</strong>
+                  <span>Tirta.pdf siap dipakai untuk upload.</span>
+                </div>
+              </div>
+              <div class="setup-item">
+                <div class="check">OK</div>
+                <div class="setup-copy">
+                  <strong>Answer bank lengkap</strong>
+                  <span>21 jawaban umum sudah tersedia.</span>
+                </div>
+              </div>
+              <div class="setup-item">
+                <div class="check">!</div>
+                <div class="setup-copy">
+                  <strong>4 jawaban baru ditemukan</strong>
+                  <span>Tambahkan sebelum run berikutnya agar tidak stuck.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </body>
+</html>

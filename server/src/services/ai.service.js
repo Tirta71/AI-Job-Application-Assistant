@@ -37,6 +37,16 @@ function trimSentence(value, maxChars = 170) {
   return trimChars(String(value || "").replace(/\s+/g, " ").trim(), maxChars);
 }
 
+function boundedScore(value, fallback = 0) {
+  const score = Number(value);
+
+  if (!Number.isFinite(score)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
 function normalizeSkillText(value) {
   return String(value || "")
     .toLowerCase()
@@ -192,7 +202,6 @@ function extractKnownJobSkills(job) {
 }
 
 function normalizeAnalysis(raw, profile, job) {
-  const matchScore = Number(raw.matchScore);
   const skillExistsInProfile = profileSkillFilter(profile);
   const rawSkillsMatched = safeArray(raw.skillsMatched);
   const rawSkillsMissing = safeArray(raw.skillsMissing);
@@ -209,9 +218,19 @@ function normalizeAnalysis(raw, profile, job) {
     ...knownJobSkills.filter((skill) => !skillExistsInProfile(skill))
   ]).filter((skill) => !skillsMatched.some((matchedSkill) => matchedSkill.toLowerCase() === skill.toLowerCase()));
   const profileSkills = getProfileSkills(profile);
+  const afterOptimizationScore = boundedScore(
+    raw.afterOptimizationScore ?? raw.optimizedMatchScore ?? raw.matchScore,
+    boundedScore(raw.matchScore)
+  );
+  const beforeOptimizationScore = boundedScore(
+    raw.beforeOptimizationScore ?? raw.originalMatchScore ?? raw.preOptimizationScore,
+    afterOptimizationScore
+  );
 
   return {
-    matchScore: Number.isFinite(matchScore) ? Math.max(0, Math.min(100, Math.round(matchScore))) : 0,
+    matchScore: afterOptimizationScore,
+    beforeOptimizationScore,
+    afterOptimizationScore,
     skillsMatched,
     skillsMissing,
     summaryLine1: trimSentence(raw.summaryLine1),
@@ -247,6 +266,8 @@ Do not use markdown, backticks, bold markers, or extra headings.
 Analyze the candidate profile and job description, then produce this exact JSON structure:
 {
   "matchScore": number,
+  "beforeOptimizationScore": number,
+  "afterOptimizationScore": number,
   "skillsMatched": string[],
   "skillsMissing": string[],
   "summaryLine1": string,
@@ -273,15 +294,22 @@ Analyze the candidate profile and job description, then produce this exact JSON 
 
 Rules:
 - Do not invent fake work experience, education, projects, achievements, certifications, companies, metrics, or skills.
+- beforeOptimizationScore is the candidate's match score before AI tailoring, based on the original candidate profile against the job description.
+- afterOptimizationScore is the expected match score after the allowed CV slots are optimized by your rewritten output.
+- matchScore must equal afterOptimizationScore for backward compatibility.
+- afterOptimizationScore should be greater than or equal to beforeOptimizationScore unless the profile has hard missing requirements that tailoring cannot improve.
 - Use only skills already present in the candidate profile for skillsWeb, skillsFrameworks, skillsBackend, and skillsToolsAi.
 - Treat skills in the candidate profile as confirmed skills. If the job requires HTML5, CSS, or jQuery and they appear in the profile skills, they must be skillsMatched and must not appear in skillsMissing.
-- Automatically detect job-required skills from the job description and align the CV skills slots to those requirements when the profile supports them.
+- Use the Job JSON as the source of truth, especially jobDescription extracted from sourceLink when present.
+- Automatically detect job-required skills, tools, frameworks, responsibilities, and keywords from the job description and align the CV slots to those requirements when the profile supports them.
 - Treat close equivalents as matches when honest: HTML/HTML5, CSS/CSS3/Tailwind CSS, REST API/RESTful API/APIs, React/React.js, Node/Node.js, YOLO/YOLOv8.
 - If a skill appears in the job description but not in the profile, add it to skillsMissing.
 - Actively rewrite, highlight, summarize, reorder, and tailor the candidate's existing information so the generated CV feels aligned with the job description.
-- For workBullet1 and workBullet2, rewrite the original experience bullets to emphasize the responsibilities, tools, and outcomes that best match the job.
-- For projectBullet1 and projectBullet2, rewrite the original project bullets to emphasize the most job-relevant technical scope.
-- For skillsWeb, skillsFrameworks, skillsBackend, and skillsToolsAi, reorder and trim the existing skills so the most job-relevant skills appear first.
+- Fully rewrite workBullet1 and workBullet2 from the original work description into job-specific CV bullets. These must not look like lightly edited copies.
+- Fully rewrite projectBullet1 and projectBullet2 from the original project description into job-specific CV bullets. These must not look like lightly edited copies.
+- Fully rewrite skillsWeb, skillsFrameworks, skillsBackend, and skillsToolsAi as job-targeted skill lines, not copied raw profile skill text.
+- For skillsWeb, skillsFrameworks, skillsBackend, and skillsToolsAi, reorder, normalize naming, and trim the existing skills so the most job-relevant skills appear first.
+- Include every job-required skill that is honestly supported by the candidate profile in either skillsMatched and the most appropriate CV skill slot.
 - You may omit less relevant existing skills from the generated CV skills slots when space is limited.
 - Compare the job description against the complete profile, especially education, skills, experience, projects, and certifications.
 - AI may only adjust these CV slots: summaryLine1-summaryLine4, workBullet1-workBullet2, projectBullet1-projectBullet2, skillsWeb, skillsFrameworks, skillsBackend, skillsToolsAi.

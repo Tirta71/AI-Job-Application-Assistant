@@ -61,6 +61,18 @@ export async function generateApplication(payload) {
   return parseResponse(response);
 }
 
+export async function renderApplicationCv(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/render-application-cv`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response);
+}
+
 export async function fetchJobFromUrl(url) {
   const response = await fetch(`${API_BASE_URL}/api/fetch-job-url`, {
     method: "POST",
@@ -80,6 +92,100 @@ export async function saveToTracker(payload) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response);
+}
+
+export async function getAutoApplyState() {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/state`);
+
+  return parseResponse(response);
+}
+
+export async function importAutoApplyJobs(rows) {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/import`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ rows }),
+  });
+
+  return parseResponse(response);
+}
+
+export async function scrapeAutoApplyJobs() {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/scrape`, {
+    method: "POST",
+  });
+
+  return parseResponse(response);
+}
+
+export async function saveAutoApplySettings(payload) {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/settings`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseResponse(response);
+}
+
+export async function updateAutoApplyJob(jobId, patch) {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/jobs/${encodeURIComponent(jobId)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(patch),
+  });
+
+  return parseResponse(response);
+}
+
+export async function queueEligibleAutoApplyJobs(jobIds = [], { all = false } = {}) {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/queue-eligible`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jobIds, all }),
+  });
+
+  return parseResponse(response);
+}
+
+export async function prepareAutoApplyRun(jobIds = [], source = "All") {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/prepare-run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jobIds, source }),
+  });
+
+  return parseResponse(response);
+}
+
+export async function runAutoApply(jobIds = [], limit, source = "All") {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jobIds, limit, source }),
+  });
+
+  return parseResponse(response);
+}
+
+export async function stopAutoApply() {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/stop`, {
+    method: "POST",
   });
 
   return parseResponse(response);

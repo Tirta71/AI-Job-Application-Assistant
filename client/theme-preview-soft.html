@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ApplyMate AI - Soft Friendly Layout</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #fbfaf4;
+        --surface: #ffffff;
+        --surface-soft: #f6fbf8;
+        --mint: #dcf8ea;
+        --mint-strong: #9be7c2;
+        --teal: #10a37f;
+        --teal-dark: #08745f;
+        --peach: #ffe4d6;
+        --coral: #ff7a59;
+        --lavender: #eee9ff;
+        --indigo: #6554d9;
+        --yellow: #fff4c7;
+        --ink: #243047;
+        --muted: #7a869a;
+        --line: #e8eee9;
+        --shadow: 0 18px 48px rgba(36, 48, 71, 0.09);
+        --radius-lg: 28px;
+        --radius: 20px;
+        --radius-sm: 14px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          linear-gradient(
+            180deg,
+            rgba(220, 248, 234, 0.42),
+            rgba(251, 250, 244, 0) 360px
+          ),
+          var(--bg);
+        color: var(--ink);
+        font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .page {
+        width: min(1100px, calc(100% - 28px));
+        margin: 0 auto;
+        padding: 18px 0 36px;
+      }
+
+      .topbar {
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        border: 1px solid rgba(232, 238, 233, 0.95);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: 0 14px 34px rgba(36, 48, 71, 0.07);
+        padding: 9px 12px;
+        backdrop-filter: blur(16px);
+      }
+
+      .brand,
+      .nav,
+      .user-pill,
+      .hero-grid,
+      .hero-actions,
+      .quick-actions,
+      .job-card,
+      .job-meta,
+      .job-actions,
+      .progress-step,
+      .mini-row,
+      .section-head,
+      .metric-grid,
+      .queue-list {
+        display: flex;
+      }
+
+      .brand {
+        align-items: center;
+        gap: 10px;
+        min-width: 210px;
+        padding-left: 6px;
+      }
+
+      .brand-logo {
+        width: 44px;
+        height: 44px;
+        display: grid;
+        place-items: center;
+        border-radius: 16px;
+        background: var(--mint);
+        color: var(--teal-dark);
+        font-weight: 900;
+      }
+
+      .brand strong,
+      .brand span,
+      .user-pill strong,
+      .user-pill span,
+      .metric strong,
+      .metric span,
+      .job-title strong,
+      .job-title span,
+      .mini-copy strong,
+      .mini-copy span,
+      .progress-copy strong,
+      .progress-copy span {
+        display: block;
+      }
+
+      .brand strong {
+        font-size: 0.98rem;
+        letter-spacing: -0.01em;
+      }
+
+      .brand span,
+      .user-pill span {
+        margin-top: 1px;
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .nav {
+        justify-content: center;
+        gap: 4px;
+        flex: 1;
+      }
+
+      .nav a {
+        border-radius: 999px;
+        color: var(--muted);
+        padding: 10px 13px;
+        font-size: 0.84rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .nav a.active {
+        background: var(--ink);
+        color: #ffffff;
+      }
+
+      .user-pill {
+        align-items: center;
+        justify-content: flex-end;
+        gap: 9px;
+        min-width: 178px;
+        border-radius: 999px;
+        background: #ffffff;
+        padding: 6px 10px 6px 6px;
+      }
+
+      .avatar {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--peach);
+        color: var(--coral);
+        font-weight: 900;
+      }
+
+      .hero {
+        margin-top: 22px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.04fr) minmax(360px, 0.96fr);
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .welcome-card,
+      .assistant-card,
+      .metric,
+      .panel,
+      .job-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: var(--shadow);
+      }
+
+      .welcome-card {
+        min-height: 380px;
+        display: grid;
+        align-content: space-between;
+        padding: 30px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        width: fit-content;
+        border-radius: 999px;
+        background: var(--yellow);
+        color: #93640d;
+        padding: 8px 12px;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      h1 {
+        margin: 16px 0 12px;
+        max-width: 620px;
+        color: var(--ink);
+        font-size: clamp(2.25rem, 5vw, 4.9rem);
+        letter-spacing: -0.055em;
+        line-height: 0.95;
+      }
+
+      .lead {
+        max-width: 580px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 1rem;
+        font-weight: 500;
+        line-height: 1.75;
+      }
+
+      .hero-actions {
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-top: 24px;
+      }
+
+      .primary-btn,
+      .secondary-btn,
+      .text-btn {
+        min-height: 46px;
+        border: 0;
+        border-radius: 999px;
+        cursor: default;
+        padding: 0 18px;
+        font-size: 0.9rem;
+        font-weight: 800;
+      }
+
+      .primary-btn {
+        background: var(--teal);
+        color: #ffffff;
+      }
+
+      .secondary-btn {
+        border: 1px solid var(--line);
+        background: #ffffff;
+        color: var(--ink);
+      }
+
+      .text-btn {
+        background: #f0f6ff;
+        color: #2463d6;
+      }
+
+      .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .quick-card {
+        border-radius: 18px;
+        background: var(--surface-soft);
+        padding: 14px;
+      }
+
+      .quick-card strong {
+        display: block;
+        color: var(--ink);
+        font-size: 0.92rem;
+      }
+
+      .quick-card span {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.45;
+      }
+
+      .assistant-card {
+        display: grid;
+        gap: 16px;
+        padding: 22px;
+        background:
+          linear-gradient(
+            180deg,
+            rgba(220, 248, 234, 0.54),
+            rgba(255, 255, 255, 0) 180px
+          ),
+          #ffffff;
+      }
+
+      .assistant-visual {
+        min-height: 150px;
+        display: grid;
+        place-items: center;
+        border-radius: 24px;
+        background: var(--mint);
+      }
+
+      .assistant-bubble {
+        width: min(100%, 360px);
+        border-radius: 24px;
+        background: #ffffff;
+        box-shadow: 0 14px 30px rgba(36, 48, 71, 0.08);
+        padding: 16px;
+      }
+
+      .assistant-bubble strong {
+        display: block;
+        font-size: 1rem;
+      }
+
+      .assistant-bubble p {
+        margin: 7px 0 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 500;
+        line-height: 1.55;
+      }
+
+      .progress-bar {
+        height: 12px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8f2ed;
+      }
+
+      .progress-bar span {
+        display: block;
+        width: 68%;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--teal);
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .metric {
+        min-height: 138px;
+        display: grid;
+        align-content: space-between;
+        border-radius: var(--radius);
+        padding: 16px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+
+      .metric strong {
+        margin-top: 8px;
+        color: var(--ink);
+        font-size: 2.22rem;
+        letter-spacing: -0.045em;
+      }
+
+      .metric small {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 500;
+      }
+
+      .content {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 18px;
+        margin-top: 18px;
+      }
+
+      .panel {
+        padding: 20px;
+      }
+
+      .section-head {
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .section-head h2 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 1.16rem;
+        letter-spacing: -0.02em;
+      }
+
+      .section-head p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 500;
+        line-height: 1.5;
+      }
+
+      .soft-pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        border-radius: 999px;
+        background: var(--lavender);
+        color: var(--indigo);
+        padding: 0 12px;
+        font-size: 0.78rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .search-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .search-row input {
+        min-height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--ink);
+        outline: none;
+        padding: 0 16px;
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      .queue-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .job-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: center;
+        border-radius: 22px;
+        box-shadow: none;
+        padding: 14px;
+      }
+
+      .job-title strong {
+        color: var(--ink);
+        font-size: 0.96rem;
+      }
+
+      .job-title span {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 500;
+      }
+
+      .job-meta {
+        gap: 7px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        border-radius: 999px;
+        background: var(--surface-soft);
+        color: var(--muted);
+        padding: 0 9px;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+
+      .tag.ready {
+        background: var(--mint);
+        color: var(--teal-dark);
+      }
+
+      .job-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(84px, 1fr));
+        gap: 7px;
+        width: 190px;
+      }
+
+      .job-actions button {
+        min-height: 34px;
+        border: 0;
+        border-radius: 12px;
+        background: #eef4ff;
+        color: #2463d6;
+        font-size: 0.76rem;
+        font-weight: 800;
+      }
+
+      .job-actions button.muted {
+        background: #f5f6f5;
+        color: var(--muted);
+      }
+
+      .side-stack {
+        display: grid;
+        gap: 18px;
+      }
+
+      .progress-list,
+      .mini-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .progress-step,
+      .mini-row {
+        gap: 11px;
+        align-items: flex-start;
+      }
+
+      .step-dot,
+      .mini-icon {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        flex: 0 0 36px;
+        border-radius: 14px;
+        background: var(--mint);
+        color: var(--teal-dark);
+        font-size: 0.78rem;
+        font-weight: 900;
+      }
+
+      .progress-step.active .step-dot {
+        background: var(--teal);
+        color: #ffffff;
+      }
+
+      .progress-copy strong,
+      .mini-copy strong {
+        color: var(--ink);
+        font-size: 0.9rem;
+      }
+
+      .progress-copy span,
+      .mini-copy span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.5;
+      }
+
+      .mini-icon.warn {
+        background: var(--peach);
+        color: var(--coral);
+      }
+
+      @media (max-width: 1040px) {
+        .topbar {
+          display: grid;
+          border-radius: 28px;
+        }
+
+        .brand,
+        .user-pill {
+          min-width: 0;
+        }
+
+        .nav {
+          justify-content: flex-start;
+          overflow-x: auto;
+        }
+
+        .hero,
+        .content {
+          grid-template-columns: 1fr;
+        }
+
+        .metric-grid,
+        .quick-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 680px) {
+        .page {
+          width: min(100% - 18px, 1180px);
+          padding-top: 9px;
+        }
+
+        .welcome-card,
+        .assistant-card,
+        .panel {
+          border-radius: 22px;
+          padding: 16px;
+        }
+
+        .metric-grid,
+        .quick-actions,
+        .search-row,
+        .job-card {
+          grid-template-columns: 1fr;
+        }
+
+        .job-actions {
+          width: 100%;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .hero-actions button,
+        .search-row button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-logo">AM</div>
+          <div>
+            <strong>ApplyMate</strong>
+            <span>AI job buddy</span>
+          </div>
+        </div>
+        <nav class="nav">
+          <a class="active" href="#">Home</a>
+          <a href="#">Explore</a>
+          <a href="#">Applications</a>
+          <a href="#">Auto Apply</a>
+          <a href="#">Answer Bank</a>
+        </nav>
+        <div class="user-pill">
+          <div class="avatar">T</div>
+          <div>
+            <strong>Tirta</strong>
+            <span>Ready to apply</span>
+          </div>
+        </div>
+      </header>
+
+      <section class="hero">
+        <div class="welcome-card">
+          <div>
+            <span class="eyebrow">Soft friendly layout</span>
+            <h1>Temani proses apply kerja, tanpa terasa ribet.</h1>
+            <p class="lead">
+              Layout ini dibuat lebih seperti workspace personal: ada arahan
+              jelas, aksi cepat, dan daftar lowongan yang terasa ringan dibaca.
+              Bukan dashboard kaku yang langsung penuh tabel.
+            </p>
+            <div class="hero-actions">
+              <button class="primary-btn">Mulai Auto Apply</button>
+              <button class="secondary-btn">Cari Lowongan Baru</button>
+              <button class="text-btn">Lengkapi Jawaban</button>
+            </div>
+          </div>
+
+          <div class="quick-actions">
+            <div class="quick-card">
+              <strong>31 siap apply</strong>
+              <span>Sudah lolos filter lokasi, role, dan stack.</span>
+            </div>
+            <div class="quick-card">
+              <strong>4 perlu jawaban</strong>
+              <span>Pertanyaan baru ditandai sebelum run berikutnya.</span>
+            </div>
+            <div class="quick-card">
+              <strong>18 terkirim</strong>
+              <span>Yang terbaru tampil paling atas.</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="assistant-card">
+          <div class="assistant-visual">
+            <div class="assistant-bubble">
+              <strong>Assistant lagi bantu apply</strong>
+              <p>
+                Frontend React Developer, stage pertanyaan. 6 jawaban sudah
+                terisi, lanjut setelah validasi aman.
+              </p>
+            </div>
+          </div>
+          <div>
+            <div class="progress-bar"><span></span></div>
+          </div>
+          <div class="mini-list">
+            <div class="mini-row">
+              <div class="mini-icon">1</div>
+              <div class="mini-copy">
+                <strong>Buka JobStreet</strong>
+                <span>Halaman lowongan berhasil dibaca.</span>
+              </div>
+            </div>
+            <div class="mini-row">
+              <div class="mini-icon warn">2</div>
+              <div class="mini-copy">
+                <strong>Jawab screening</strong>
+                <span>Scrum Agile: Yes, Education: S1, React: 1-3 years.</span>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="metric-grid">
+        <div class="metric">
+          <div>
+            <span>Lowongan masuk</span>
+            <strong>128</strong>
+          </div>
+          <small>42 baru dari scraping hari ini</small>
+        </div>
+        <div class="metric">
+          <div>
+            <span>Siap dikirim</span>
+            <strong>31</strong>
+          </div>
+          <small>Prioritas high dan medium</small>
+        </div>
+        <div class="metric">
+          <div>
+            <span>Sudah applied</span>
+            <strong>18</strong>
+          </div>
+          <small>7 terkirim minggu ini</small>
+        </div>
+        <div class="metric">
+          <div>
+            <span>Butuh cek</span>
+            <strong>4</strong>
+          </div>
+          <small>Biasanya pertanyaan form baru</small>
+        </div>
+      </section>
+
+      <section class="content">
+        <div class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Lowongan yang enak buat diproses</h2>
+              <p>
+                Daftar dibuat seperti job cards, jadi lebih friendly daripada
+                table panjang.
+              </p>
+            </div>
+            <span class="soft-pill">10 data / halaman</span>
+          </div>
+
+          <div class="search-row">
+            <input value="React, Laravel, Remote" aria-label="Cari lowongan" />
+            <button class="secondary-btn">Filter</button>
+          </div>
+
+          <div class="queue-list">
+            <article class="job-card">
+              <div>
+                <div class="job-title">
+                  <strong>Frontend React Developer</strong>
+                  <span>Fintech Growth - Jakarta Hybrid</span>
+                </div>
+                <div class="job-meta">
+                  <span class="tag ready">Siap Apply</span>
+                  <span class="tag">High priority</span>
+                  <span class="tag">React</span>
+                  <span class="tag">TypeScript</span>
+                </div>
+              </div>
+              <div class="job-actions">
+                <button>Detail</button>
+                <button>Favorit</button>
+                <button>Queue</button>
+                <button class="muted">Archive</button>
+              </div>
+            </article>
+
+            <article class="job-card">
+              <div>
+                <div class="job-title">
+                  <strong>Junior Fullstack Engineer</strong>
+                  <span>Product Studio - Remote Indonesia</span>
+                </div>
+                <div class="job-meta">
+                  <span class="tag ready">Siap Apply</span>
+                  <span class="tag">Medium priority</span>
+                  <span class="tag">Laravel</span>
+                  <span class="tag">MySQL</span>
+                </div>
+              </div>
+              <div class="job-actions">
+                <button>Detail</button>
+                <button>Favorit</button>
+                <button>Queue</button>
+                <button class="muted">Archive</button>
+              </div>
+            </article>
+
+            <article class="job-card">
+              <div>
+                <div class="job-title">
+                  <strong>Web Application Developer</strong>
+                  <span>Enterprise Systems - Bekasi Onsite</span>
+                </div>
+                <div class="job-meta">
+                  <span class="tag">Review dulu</span>
+                  <span class="tag">PHP</span>
+                  <span class="tag">API Integration</span>
+                </div>
+              </div>
+              <div class="job-actions">
+                <button>Detail</button>
+                <button>Favorit</button>
+                <button>Queue</button>
+                <button class="muted">Archive</button>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="side-stack">
+          <div class="panel">
+            <div class="section-head">
+              <div>
+                <h2>Progress yang mudah dimengerti</h2>
+                <p>Stuck point tetap ada, tapi bahasanya dibuat ringan.</p>
+              </div>
+            </div>
+            <div class="progress-list">
+              <div class="progress-step">
+                <div class="step-dot">OK</div>
+                <div class="progress-copy">
+                  <strong>Halaman lowongan dibuka</strong>
+                  <span>Assistant sudah menemukan tombol apply.</span>
+                </div>
+              </div>
+              <div class="progress-step active">
+                <div class="step-dot">...</div>
+                <div class="progress-copy">
+                  <strong>Mengisi pertanyaan employer</strong>
+                  <span
+                    >Menjawab experience, education, dan yes/no screening.</span
+                  >
+                </div>
+              </div>
+              <div class="progress-step">
+                <div class="step-dot">3</div>
+                <div class="progress-copy">
+                  <strong>Review lalu submit</strong>
+                  <span>Submit berjalan setelah tidak ada validasi merah.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel">
+            <div class="section-head">
+              <div>
+                <h2>Answer bank sehat</h2>
+                <p>
+                  Dibuat seperti checklist, bukan form panjang yang melelahkan.
+                </p>
+              </div>
+            </div>
+            <div class="mini-list">
+              <div class="mini-row">
+                <div class="mini-icon">OK</div>
+                <div class="mini-copy">
+                  <strong>Profile dan CV</strong>
+                  <span>CV path, salary, dan notice period sudah siap.</span>
+                </div>
+              </div>
+              <div class="mini-row">
+                <div class="mini-icon">OK</div>
+                <div class="mini-copy">
+                  <strong>Skill experience</strong>
+                  <span
+                    >React, Laravel, SQL, dan Node sudah punya pilihan.</span
+                  >
+                </div>
+              </div>
+              <div class="mini-row">
+                <div class="mini-icon warn">!</div>
+                <div class="mini-copy">
+                  <strong>4 pertanyaan baru</strong>
+                  <span
+                    >Perlu ditambahkan agar auto apply berikutnya tidak
+                    stuck.</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

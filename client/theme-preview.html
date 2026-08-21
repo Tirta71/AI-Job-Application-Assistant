@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Job Application Assistant - Theme Preview</title>
+    <style>
+      :root {
+        --navy: #172033;
+        --navy-soft: #22304a;
+        --primary: #0f766e;
+        --primary-dark: #115e59;
+        --accent: #2563eb;
+        --background: #f5f8fb;
+        --surface: #ffffff;
+        --surface-soft: #f8fafc;
+        --line: #d9e2ec;
+        --muted: #667085;
+        --text: #182230;
+        --success: #16803c;
+        --warning: #b7791f;
+        --danger: #b42318;
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--background);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .app-shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 256px minmax(0, 1fr);
+      }
+
+      .sidebar {
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        gap: 24px;
+        background: var(--navy);
+        color: #e7eef8;
+        padding: 22px 18px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: var(--radius);
+        background: var(--primary);
+        color: #ffffff;
+        font-weight: 950;
+      }
+
+      .brand strong,
+      .brand span,
+      .nav a,
+      .account strong,
+      .account span {
+        display: block;
+      }
+
+      .brand strong {
+        font-size: 0.98rem;
+      }
+
+      .brand span,
+      .account span {
+        margin-top: 2px;
+        color: #a9b7ce;
+        font-size: 0.78rem;
+        font-weight: 750;
+      }
+
+      .nav {
+        display: grid;
+        gap: 8px;
+        align-content: start;
+      }
+
+      .nav a {
+        border-radius: var(--radius);
+        color: #cdd8e8;
+        padding: 10px 12px;
+        font-size: 0.9rem;
+        font-weight: 850;
+        text-decoration: none;
+      }
+
+      .nav a.active {
+        background: var(--navy-soft);
+        color: #ffffff;
+      }
+
+      .account {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 12px;
+      }
+
+      .main {
+        min-width: 0;
+        padding: 24px;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      .page-title span {
+        color: var(--primary);
+        font-size: 0.78rem;
+        font-weight: 950;
+        letter-spacing: 0;
+        text-transform: uppercase;
+      }
+
+      .page-title h1 {
+        margin: 4px 0;
+        color: #111827;
+        font-size: 1.72rem;
+        letter-spacing: 0;
+        line-height: 1.1;
+      }
+
+      .page-title p {
+        margin: 0;
+        max-width: 640px;
+        color: var(--muted);
+        font-size: 0.94rem;
+        line-height: 1.5;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      button {
+        min-height: 40px;
+        border: 1px solid transparent;
+        border-radius: var(--radius);
+        cursor: default;
+        padding: 0 14px;
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 900;
+      }
+
+      .primary {
+        background: var(--primary);
+        color: #ffffff;
+      }
+
+      .secondary {
+        border-color: var(--line);
+        background: var(--surface);
+        color: #243447;
+      }
+
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .metric,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+      }
+
+      .metric {
+        min-height: 116px;
+        padding: 16px;
+      }
+
+      .metric span {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 10px;
+        color: #101828;
+        font-size: 2rem;
+        line-height: 1;
+      }
+
+      .metric small {
+        display: block;
+        margin-top: 8px;
+        color: var(--muted);
+        font-weight: 750;
+      }
+
+      .content-grid {
+        grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
+        margin-top: 14px;
+      }
+
+      .panel {
+        min-width: 0;
+        padding: 16px;
+      }
+
+      .panel-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .panel-heading h2 {
+        margin: 0;
+        color: #111827;
+        font-size: 1rem;
+        letter-spacing: 0;
+      }
+
+      .panel-heading p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        border-radius: 999px;
+        padding: 0 9px;
+        font-size: 0.76rem;
+        font-weight: 950;
+      }
+
+      .pill.success {
+        background: #e9f7ef;
+        color: var(--success);
+      }
+
+      .pill.warning {
+        background: #fff7e6;
+        color: var(--warning);
+      }
+
+      .pill.info {
+        background: #eaf1ff;
+        color: var(--accent);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line);
+        padding: 11px 8px;
+        text-align: left;
+        vertical-align: middle;
+      }
+
+      th {
+        background: #eef4f7;
+        color: #475467;
+        font-size: 0.76rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      td strong,
+      td span {
+        display: block;
+      }
+
+      td strong {
+        color: #172033;
+        font-size: 0.88rem;
+      }
+
+      td span {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 750;
+      }
+
+      .action-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        min-width: 190px;
+      }
+
+      .action-grid button {
+        width: 100%;
+        min-height: 32px;
+        padding: 0 8px;
+        background: #eef4ff;
+        color: #1d4ed8;
+        font-size: 0.78rem;
+      }
+
+      .action-grid button.muted {
+        background: #f2f4f7;
+        color: #475467;
+      }
+
+      .progress-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .step {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+      }
+
+      .step-mark {
+        width: 34px;
+        height: 34px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        background: #e8f5f2;
+        color: var(--primary);
+        font-size: 0.8rem;
+        font-weight: 950;
+      }
+
+      .step.active .step-mark {
+        background: var(--primary);
+        color: #ffffff;
+      }
+
+      .step strong {
+        display: block;
+        color: #172033;
+        font-size: 0.9rem;
+      }
+
+      .step span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 0.8rem;
+        line-height: 1.4;
+      }
+
+      .answer-bank {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .answer-bank div {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface-soft);
+        padding: 10px;
+      }
+
+      .answer-bank span {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 950;
+        text-transform: uppercase;
+      }
+
+      .answer-bank strong {
+        display: block;
+        margin-top: 4px;
+        color: #243447;
+        font-size: 0.86rem;
+      }
+
+      @media (max-width: 1040px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          display: block;
+        }
+
+        .nav {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          margin-top: 18px;
+        }
+
+        .account {
+          margin-top: 18px;
+        }
+
+        .metrics,
+        .content-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .main {
+          padding: 16px;
+        }
+
+        .topbar,
+        .panel-heading {
+          display: grid;
+        }
+
+        .actions {
+          justify-content: stretch;
+        }
+
+        .actions button,
+        .answer-bank {
+          width: 100%;
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AI</div>
+          <div>
+            <strong>ApplyPilot</strong>
+            <span>Career automation dashboard</span>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <a class="active" href="#">Dashboard</a>
+          <a href="#">Jelajahi Lowongan</a>
+          <a href="#">Lamaran Saya</a>
+          <a href="#">Auto Apply</a>
+          <a href="#">Answer Bank</a>
+          <a href="#">Rules</a>
+        </nav>
+
+        <div class="account">
+          <strong>Tirta Workspace</strong>
+          <span>CV ready, JobStreet connected</span>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="page-title">
+            <span>AI Job Application Assistant</span>
+            <h1>Kelola apply kerja dari satu dashboard</h1>
+            <p>
+              Scrape lowongan, cek kecocokan, auto apply, dan pantau progress lamaran dengan tampilan yang lebih siap
+              dipakai sebagai produk SaaS.
+            </p>
+          </div>
+          <div class="actions">
+            <button class="secondary">Scrape Lowongan</button>
+            <button class="primary">Run Auto Apply</button>
+          </div>
+        </header>
+
+        <section class="grid metrics">
+          <div class="metric">
+            <span>Lowongan</span>
+            <strong>128</strong>
+            <small>42 baru dari JobStreet dan Glints</small>
+          </div>
+          <div class="metric">
+            <span>Siap Apply</span>
+            <strong>31</strong>
+            <small>Sudah lolos filter portfolio</small>
+          </div>
+          <div class="metric">
+            <span>Applied</span>
+            <strong>18</strong>
+            <small>7 terkirim minggu ini</small>
+          </div>
+          <div class="metric">
+            <span>Needs Input</span>
+            <strong>4</strong>
+            <small>Butuh jawaban atau review manual</small>
+          </div>
+        </section>
+
+        <section class="grid content-grid">
+          <div class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Jelajahi Lowongan</h2>
+                <p>Lowongan prioritas yang siap dicek dan masuk queue auto apply.</p>
+              </div>
+              <span class="pill info">10 per halaman</span>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Lowongan</th>
+                  <th>Perusahaan</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong>Frontend React Developer</strong>
+                    <span>Jakarta Hybrid, React, TypeScript</span>
+                  </td>
+                  <td>Fintech Growth</td>
+                  <td><span class="pill success">Siap Apply</span></td>
+                  <td>
+                    <div class="action-grid">
+                      <button>Detail</button>
+                      <button>Favorit</button>
+                      <button>Queue</button>
+                      <button class="muted">Archive</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Junior Fullstack Engineer</strong>
+                    <span>Remote Indonesia, Laravel, MySQL</span>
+                  </td>
+                  <td>Product Studio</td>
+                  <td><span class="pill warning">Review</span></td>
+                  <td>
+                    <div class="action-grid">
+                      <button>Detail</button>
+                      <button>Favorit</button>
+                      <button>Queue</button>
+                      <button class="muted">Archive</button>
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <strong>Web Application Developer</strong>
+                    <span>Bekasi Onsite, PHP, API Integration</span>
+                  </td>
+                  <td>Enterprise Systems</td>
+                  <td><span class="pill success">Siap Apply</span></td>
+                  <td>
+                    <div class="action-grid">
+                      <button>Detail</button>
+                      <button>Favorit</button>
+                      <button>Queue</button>
+                      <button class="muted">Archive</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <aside class="panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Progress Auto Apply</h2>
+                <p>Current run dibuat lebih mudah dibaca saat stuck.</p>
+              </div>
+              <span class="pill warning">Running</span>
+            </div>
+
+            <div class="progress-list">
+              <div class="step">
+                <div class="step-mark">1</div>
+                <div>
+                  <strong>Open Job</strong>
+                  <span>Membuka halaman JobStreet untuk Frontend React Developer.</span>
+                </div>
+              </div>
+              <div class="step active">
+                <div class="step-mark">2</div>
+                <div>
+                  <strong>Answer Questions</strong>
+                  <span>Stage questions, 6 field terisi, menunggu validasi setelah Continue.</span>
+                </div>
+              </div>
+              <div class="step">
+                <div class="step-mark">3</div>
+                <div>
+                  <strong>Review and Submit</strong>
+                  <span>Submit otomatis berjalan setelah semua required field valid.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="answer-bank">
+              <div>
+                <span>Education</span>
+                <strong>Bachelor Degree (S1)</strong>
+              </div>
+              <div>
+                <span>Scrum Agile</span>
+                <strong>Yes</strong>
+              </div>
+              <div>
+                <span>React</span>
+                <strong>1-3 years</strong>
+              </div>
+              <div>
+                <span>Notice</span>
+                <strong>Immediately</strong>
+              </div>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

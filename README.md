@@ -1,11 +1,14 @@
 # AI Job Application Assistant
 
-Full-stack assistant untuk membuat CV yang disesuaikan dengan job description, cover letter, email lamaran, LinkedIn DM, analisa kecocokan, dan tracker lamaran. Project ini tidak menggunakan database. Profile disimpan di frontend `localStorage`, file CV disimpan di folder lokal backend, dan tracker disimpan ke Google Sheets atau fallback CSV lokal.
+Dashboard asisten lamaran kerja untuk scraping lowongan langsung dari website, pengelolaan CV, pembuatan application kit, antrean auto-apply, dan tracking status lamaran. MVP saat ini memakai storage lokal backend untuk queue/setting dan Google Sheets atau CSV lokal untuk tracker; arsitektur PRD berikutnya dapat dimigrasi ke SQLite/Turso + worker queue.
 
 ## Fitur
 
-- UI compact dua kolom: input di kiri, result preview di kanan.
-- Profile auto-fill dari master CV Tirta Samara.
+- Jelajahi lowongan dari scraping langsung Glints/JobStreet lewat BrowserAct, lalu auto queue jika lolos filter.
+- Lamaran Saya untuk memantau status applied, needs input, interview, rejected, dan offer.
+- Lamar Otomatis untuk menyiapkan queue, answer bank, dan guardrail sebelum worker BrowserAct berjalan.
+- Pengaturan Sumber untuk sumber aktif, keyword default, target lokasi, blacklist, dan rule auto-apply.
+- Profil & CV dengan profile auto-fill dari master CV Tirta Samara.
 - Tombol `Reset to Master CV`.
 - Upload template CV DOCX dan validasi placeholder wajib.
 - Fetch job description dari link lowongan jika halaman bisa dibaca otomatis.
@@ -16,6 +19,8 @@ Full-stack assistant untuk membuat CV yang disesuaikan dengan job description, c
 - Copy cover letter, email, dan LinkedIn DM.
 - Save tracker ke Google Sheets.
 - Fallback tracker ke `server/storage/tracker/job-tracker.csv`.
+- Queue auto-apply lokal di `server/storage/auto-apply/state.json`.
+- Worker auto-apply BrowserAct melalui `cd server && npm run auto-apply`.
 
 ## Tech Stack
 

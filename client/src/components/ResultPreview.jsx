@@ -47,16 +47,36 @@ function ImprovementBlock({ items }) {
   );
 }
 
-function CvSlotsBlock({ result }) {
-  const summaryLines = [result.summaryLine1, result.summaryLine2, result.summaryLine3, result.summaryLine4].filter(Boolean);
-  const workBullets = [result.workBullet1, result.workBullet2].filter(Boolean);
-  const projectBullets = [result.projectBullet1, result.projectBullet2].filter(Boolean);
+function EditField({ label, value, rows = 2, onChange }) {
+  return (
+    <label className="field edit-field">
+      <span>{label}</span>
+      <textarea rows={rows} value={value || ""} onChange={(event) => onChange(event.target.value)} />
+    </label>
+  );
+}
+
+function CvSlotsBlock({ result, onFieldChange }) {
+  const summaryFields = [
+    ["summaryLine1", "Line 1"],
+    ["summaryLine2", "Line 2"],
+    ["summaryLine3", "Line 3"],
+    ["summaryLine4", "Line 4"]
+  ];
+  const workFields = [
+    ["workBullet1", "Work bullet 1"],
+    ["workBullet2", "Work bullet 2"]
+  ];
+  const projectFields = [
+    ["projectBullet1", "Project bullet 1"],
+    ["projectBullet2", "Project bullet 2"]
+  ];
   const skillRows = [
-    ["Web", result.skillsWeb],
-    ["Frameworks", result.skillsFrameworks],
-    ["Backend", result.skillsBackend],
-    ["Tools & AI", result.skillsToolsAi]
-  ].filter(([, value]) => value);
+    ["skillsWeb", "Web"],
+    ["skillsFrameworks", "Frameworks"],
+    ["skillsBackend", "Backend"],
+    ["skillsToolsAi", "Tools & AI"]
+  ];
 
   return (
     <div className="result-block">
@@ -64,54 +84,44 @@ function CvSlotsBlock({ result }) {
 
       <div className="slot-group">
         <strong>Summary</strong>
-        {summaryLines.length > 0 ? summaryLines.map((line) => <p key={line}>{line}</p>) : <p className="muted">No summary rewrite</p>}
+        <div className="editable-slot-grid">
+          {summaryFields.map(([field, label]) => (
+            <EditField key={field} label={label} value={result[field]} onChange={(value) => onFieldChange(field, value)} />
+          ))}
+        </div>
       </div>
 
       <div className="slot-group">
         <strong>Work Experience</strong>
-        {workBullets.length > 0 ? (
-          <ul className="compact-list">
-            {workBullets.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">No work rewrite</p>
-        )}
+        <div className="editable-slot-grid">
+          {workFields.map(([field, label]) => (
+            <EditField key={field} label={label} value={result[field]} rows={3} onChange={(value) => onFieldChange(field, value)} />
+          ))}
+        </div>
       </div>
 
       <div className="slot-group">
         <strong>Project</strong>
-        {projectBullets.length > 0 ? (
-          <ul className="compact-list">
-            {projectBullets.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted">No project rewrite</p>
-        )}
+        <div className="editable-slot-grid">
+          {projectFields.map(([field, label]) => (
+            <EditField key={field} label={label} value={result[field]} rows={3} onChange={(value) => onFieldChange(field, value)} />
+          ))}
+        </div>
       </div>
 
       <div className="slot-group">
         <strong>Skills</strong>
-        {skillRows.length > 0 ? (
-          <div className="skill-slot-grid">
-            {skillRows.map(([label, value]) => (
-              <p key={label}>
-                <span>{label}:</span> {value}
-              </p>
-            ))}
-          </div>
-        ) : (
-          <p className="muted">No skill rewrite</p>
-        )}
+        <div className="skill-slot-grid editable-skills">
+          {skillRows.map(([field, label]) => (
+            <EditField key={field} label={label} value={result[field]} rows={2} onChange={(value) => onFieldChange(field, value)} />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-export default function ResultPreview({ result, copyStatus, onCopy }) {
+export default function ResultPreview({ result, copyStatus, fileRefreshStatus, onCopy, onResultChange }) {
   const [activeTab, setActiveTab] = useState("coverLetter");
 
   if (!result) {
@@ -127,6 +137,30 @@ export default function ResultPreview({ result, copyStatus, onCopy }) {
   }
 
   const emailText = [result.emailApplication?.subject, result.emailApplication?.body].filter(Boolean).join("\n\n");
+
+  function updateField(field, value, options) {
+    onResultChange(
+      {
+        ...result,
+        [field]: value
+      },
+      options
+    );
+  }
+
+  function updateEmailField(field, value) {
+    onResultChange(
+      {
+        ...result,
+        emailApplication: {
+          ...(result.emailApplication || {}),
+          [field]: value
+        }
+      },
+      { renderCv: false }
+    );
+  }
+
   const activeContent = {
     coverLetter: {
       title: "Cover Letter",
@@ -147,6 +181,9 @@ export default function ResultPreview({ result, copyStatus, onCopy }) {
       value: result.linkedinDM
     }
   }[activeTab];
+  const beforeScore = result.beforeOptimizationScore ?? result.matchScore ?? 0;
+  const afterScore = result.afterOptimizationScore ?? result.matchScore ?? 0;
+  const scoreDelta = afterScore - beforeScore;
 
   return (
     <section className="panel" id="result">
@@ -157,11 +194,19 @@ export default function ResultPreview({ result, copyStatus, onCopy }) {
 
       {result.warning && <p className="status warning subtle-warning">{result.warning}</p>}
       {copyStatus && <p className="status success">{copyStatus}</p>}
+      {fileRefreshStatus?.message && <p className={`status ${fileRefreshStatus.type}`}>{fileRefreshStatus.message}</p>}
 
       <div className="summary-grid">
-        <div className="score-card" aria-label={`Match score ${result.matchScore}`}>
-          <span>{result.matchScore ?? 0}</span>
-          <small>Match Score</small>
+        <div className="score-comparison">
+          <div className="score-card before-score" aria-label={`Before optimization match score ${beforeScore}`}>
+            <span>{beforeScore}</span>
+            <small>Before Optimize</small>
+          </div>
+          <div className="score-card after-score" aria-label={`After optimization match score ${afterScore}`}>
+            <span>{afterScore}</span>
+            <small>After Optimize</small>
+            {scoreDelta !== 0 && <em className={scoreDelta > 0 ? "positive-delta" : "negative-delta"}>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta}</em>}
+          </div>
         </div>
         <div className="result-block notes-card">
           <h3>AI Notes</h3>
@@ -175,7 +220,7 @@ export default function ResultPreview({ result, copyStatus, onCopy }) {
       </div>
 
       <ImprovementBlock items={result.cvImprovement} />
-      <CvSlotsBlock result={result} />
+      <CvSlotsBlock result={result} onFieldChange={updateField} />
 
       <div className="result-block">
         <div className="tabs">
@@ -198,7 +243,27 @@ export default function ResultPreview({ result, copyStatus, onCopy }) {
             </button>
           )}
         </div>
-        <p className="pre-line">{activeContent.value || "No content"}</p>
+        {activeTab === "email" ? (
+          <div className="editable-message-grid">
+            <label className="field edit-field">
+              <span>Subject</span>
+              <input value={result.emailApplication?.subject || ""} onChange={(event) => updateEmailField("subject", event.target.value)} />
+            </label>
+            <EditField
+              label="Body"
+              value={result.emailApplication?.body || ""}
+              rows={9}
+              onChange={(value) => updateEmailField("body", value)}
+            />
+          </div>
+        ) : (
+          <textarea
+            className="message-editor"
+            rows={activeTab === "coverLetter" ? 12 : 6}
+            value={activeContent.value || ""}
+            onChange={(event) => updateField(activeTab, event.target.value, { renderCv: false })}
+          />
+        )}
       </div>
 
       <div className="download-row">
