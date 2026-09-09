@@ -190,45 +190,43 @@ export default function App() {
   };
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell ${["jobs", "applications", "autoApply"].includes(activeTab) ? "home-page" : ""} ${activeTab === "autoApply" ? "auto-apply-page" : ""}`}>
       <header className="soft-topbar">
         <div className="soft-brand">
-          <div className="brand-logo">AM</div>
-          <div>
-            <strong>ApplyMate</strong>
-            <span>AI job buddy</span>
+          <div className="brand-image-frame">
+            <img className="brand-image" src="/applymate-logo.png" alt="ApplyMate" width="500" height="500" />
           </div>
         </div>
 
         <nav className="app-tabs" aria-label="Application sections">
           {[
-            ["jobs", "Explore"],
-            ["applications", "Applications"],
-            ["autoApply", "Auto Apply"],
-            ["profileCv", "Profile CV"],
-            ["sources", "Rules"],
+            ["jobs", "Lowongan"],
+            ["applications", "Lamaran Saya"],
+            ["autoApply", "Lamar Otomatis"],
+            ["profileCv", "Profil & CV"],
+            ["sources", "Pengaturan"],
           ].map(([tabId, label]) => (
-            <button className={`tab ${activeTab === tabId ? "active" : ""}`} type="button" onClick={() => setActiveTab(tabId)} key={tabId}>
+            <button className={`tab ${activeTab === tabId ? "active" : ""}`} type="button" aria-current={activeTab === tabId ? "page" : undefined} onClick={() => setActiveTab(tabId)} key={tabId}>
               {label}
             </button>
           ))}
         </nav>
 
         <div className="user-pill">
-          <div className="user-avatar">T</div>
+          <div className="user-avatar">{(profile.fullName || "U").charAt(0)}</div>
           <div>
-            <strong>Tirta</strong>
-            <span>Ready to apply</span>
+            <strong>{(profile.fullName || "Pengguna").split(" ")[0]}</strong>
+            <span>Profil pribadi</span>
           </div>
         </div>
       </header>
 
-      <section className="app-hero">
+      {!["jobs", "applications", "autoApply"].includes(activeTab) && <section className="app-hero">
         <div>
-          <span className="eyebrow">Soft friendly workspace</span>
-          <h1>{activeTab === "jobs" ? "Temani proses apply kerja, tanpa terasa ribet." : tabLabels[activeTab]}</h1>
+          <span className="eyebrow">RUANG KARIER ANDA</span>
+          <h1>{activeTab === "jobs" ? "Temukan peluang berikutnya." : tabLabels[activeTab]}</h1>
           <p className="subtitle">
-            Lowongan tetap rapi, auto apply tetap terukur, dan setiap langkah dibuat lebih ringan dibaca.
+            {activeTab === "jobs" ? "Cari lowongan, pilih yang cocok, dan kelola lamaran dalam satu tempat." : "Kelola setiap langkah pencarian kerja Anda."}
           </p>
         </div>
         {activeTab === "profileCv" && (
@@ -236,7 +234,7 @@ export default function App() {
             {loading ? "Generating..." : "Generate CV & Letter"}
           </button>
         )}
-      </section>
+      </section>}
 
       {activeTab === "profileCv" ? (
         <div className="page-grid">

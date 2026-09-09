@@ -1653,7 +1653,7 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       "Auto apply stopped: missing job URL.",
       { jobId: job.id }
     );
-    markJob(job, { pipelineStatus: "Skipped", nextAction: "Missing job URL" }, "Auto apply skipped: missing job URL.");
+    markJob(job, { pipelineStatus: "Siap Dilamar", automationStatus: "needs_review", nextAction: "URL lowongan belum tersedia" }, "Auto apply skipped: missing job URL.");
     return { status: "skipped", message: "Missing job URL; continued to next job." };
   }
 
@@ -1698,7 +1698,8 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       markJob(
         job,
         {
-          pipelineStatus: "Applied",
+          pipelineStatus: "Sudah Dilamar",
+          automationStatus: "submitted",
           appliedAt: new Date().toISOString(),
           nextAction: "Track response",
           responseStatus: "Menunggu HR",
@@ -1722,7 +1723,7 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       );
       markJob(
         job,
-        { pipelineStatus: "Skipped", nextAction: "Login/verification blocked this attempt", browserSessionName: "", remoteAssist: "" },
+        { pipelineStatus: "Siap Dilamar", automationStatus: "needs_review", nextAction: "Perlu login atau verifikasi sebelum dicoba lagi", browserSessionName: "", remoteAssist: "" },
         "Auto apply skipped this job and continued: login or verification required."
       );
       return { status: "skipped", message: "Login or verification required; continued to next job." };
@@ -1765,7 +1766,7 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       );
       markJob(
         job,
-        { pipelineStatus: "Skipped", nextAction: "Apply button not found", browserSessionName: "", remoteAssist: "" },
+        { pipelineStatus: "Siap Dilamar", automationStatus: "needs_review", nextAction: "Tombol lamar tidak ditemukan; periksa detail lowongan", browserSessionName: "", remoteAssist: "" },
         "Auto apply skipped this job and continued: apply button not found."
       );
       return { status: "skipped", message: "Apply button not found; continued to next job." };
@@ -1815,7 +1816,8 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       markJob(
         job,
         {
-          pipelineStatus: "Applied",
+          pipelineStatus: "Sudah Dilamar",
+          automationStatus: "submitted",
           appliedAt: new Date().toISOString(),
           nextAction: "Track response",
           responseStatus: "Menunggu HR",
@@ -1839,7 +1841,7 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       );
       markJob(
         job,
-        { pipelineStatus: "Skipped", nextAction: "Login/verification blocked this attempt", browserSessionName: "", remoteAssist: "" },
+        { pipelineStatus: "Siap Dilamar", automationStatus: "needs_review", nextAction: "Perlu login atau verifikasi sebelum dicoba lagi", browserSessionName: "", remoteAssist: "" },
         "Auto apply skipped this job and continued: login or verification required."
       );
       return { status: "skipped", message: "Login or verification required; continued to next job." };
@@ -1881,7 +1883,8 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
         markJob(
           job,
           {
-            pipelineStatus: "Applied",
+            pipelineStatus: "Sudah Dilamar",
+            automationStatus: "submitted",
             appliedAt: new Date().toISOString(),
             nextAction: "Track response",
             responseStatus: "Menunggu HR",
@@ -1911,7 +1914,7 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
       );
       markJob(
         job,
-        { pipelineStatus: "Skipped", nextAction: submitResult.message, browserSessionName: "", remoteAssist: "" },
+        { pipelineStatus: "Siap Dilamar", automationStatus: "needs_review", nextAction: submitResult.message, browserSessionName: "", remoteAssist: "" },
         `Auto apply skipped this job and continued. ${submitResult.message} Fields filled: ${submitResult.filled}. CV upload: ${
           submitResult.upload.uploaded ? "yes" : submitResult.upload.reason
         }.`
@@ -1932,7 +1935,7 @@ function processJob(job, { runId, browserId, answerBank, rules }) {
     );
     markJob(
       job,
-      { pipelineStatus: "Skipped", nextAction: "Application page was not recognized", browserSessionName: "", remoteAssist: "" },
+      { pipelineStatus: "Siap Dilamar", automationStatus: "needs_review", nextAction: "Halaman lamaran belum dikenali; perlu diperiksa", browserSessionName: "", remoteAssist: "" },
       "Auto apply skipped this job and continued: application page not recognized."
     );
     return { status: "skipped", message: "Application page not recognized; continued to next job." };
@@ -2047,8 +2050,9 @@ function main() {
   for (const job of jobs) {
     try {
       updateAutoApplyJob(job.id, {
-        pipelineStatus: "Applying",
-        nextAction: "BrowserAct is processing this job",
+        pipelineStatus: "Siap Dilamar",
+        automationStatus: "processing",
+        nextAction: "Sedang diproses oleh BrowserAct",
       });
       const jobStartedAt = Date.now();
       const result = processJob(job, { runId, browserId, answerBank: state.answerBank, rules: state.rules });
@@ -2076,8 +2080,9 @@ function main() {
       processed += 1;
       failed += 1;
       updateAutoApplyJob(job.id, {
-        pipelineStatus: "Failed",
-        nextAction: "Review BrowserAct error",
+        pipelineStatus: "Siap Dilamar",
+        automationStatus: "failed",
+        nextAction: "Proses gagal; periksa error BrowserAct lalu coba lagi",
         notes: clean(`${job.notes || ""} Auto apply error: ${error.message}`),
       });
       patchAutoApplyRun(

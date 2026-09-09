@@ -10,25 +10,43 @@ import {
   updateAutoApplyJob,
 } from "../api/client.js";
 
-const jobStatusOptions = [
-  "Belum direview",
-  "Review perusahaan",
-  "Favorit",
-  "Siap Apply",
-  "Scheduled",
-  "Applying",
-  "Applied",
-  "Skipped",
-  "Failed",
-  "Rejected",
-  "Interview",
-  "Offer",
-  "Archived",
-];
+function JobSkills({ skills, compact }) {
+  const [expanded, setExpanded] = useState(false);
+  const visibleSkills = compact && !expanded ? skills.slice(0, 3) : skills;
 
-const exploreStatusOptions = ["All", "Belum direview", "Review perusahaan", "Favorit", "Siap Apply", "Archived"];
-const applicationStatusOptions = ["All", "Applied", "Skipped", "Interview", "Offer", "Rejected", "Failed"];
-const autoApplyStatusOptions = ["All", "Siap Apply", "Scheduled", "Applying", "Skipped", "Failed"];
+  return (
+    <div className="job-skill-row">
+      <span>Skill cocok</span>
+      <div>
+        {visibleSkills.map((skill) => <em key={skill}>{skill}</em>)}
+        {compact && skills.length > 3 && (
+          <button
+            type="button"
+            className="skill-toggle"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "Lebih sedikit" : `+${skills.length - 3} lainnya`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function formatSalary(value) {
+  if (!value?.trim()) return "Tidak ditampilkan";
+  return value.trim()
+    .replace(/(\d[\d.,]*)\s*(?:[-–—]|sampai|hingga|to)\s*(?=(?:Rp\s*)?\d)/gi, "$1 - ")
+    .replace(/(\d[\d.,]*)\s+(?=(?:Rp\s*)?\d)/g, "$1 - ")
+    .replace(/\bRp\s*(?=\d)/gi, "Rp ")
+    .replace(/\s*\/\s*bulan/gi, " / bulan");
+}
+
+const jobStatusOptions = ["Disimpan", "Siap Dilamar", "Sudah Dilamar"];
+const exploreStatusOptions = ["All", "Disimpan", "Siap Dilamar"];
+const applicationStatusOptions = ["All", "Sudah Dilamar"];
+const autoApplyStatusOptions = ["All", "Siap Dilamar"];
 const sourceOptions = ["All", "Glints", "JobStreet", "LinkedIn", "Company Website", "Manual"];
 const salaryOptions = ["3.000.000", "3.500.000", "4.000.000", "4.500.000", "5.000.000", "6.000.000", "8.000.000"];
 const experienceOptions = ["No experience", "<1 year", "1-3 years", "1 year", "2 years", "3 years", "4 years", "5 years", ">5 years"];
@@ -115,7 +133,7 @@ function emptyState() {
 
 function countByStatus(jobs) {
   return jobs.reduce((counts, job) => {
-    const key = job.pipelineStatus || "Belum direview";
+    const key = job.pipelineStatus || "Disimpan";
     counts[key] = (counts[key] || 0) + 1;
     return counts;
   }, {});
@@ -152,7 +170,7 @@ function jobIdentityKeys(job = {}) {
 }
 
 function appliedJobIdentitySet(jobs = []) {
-  const appliedStatuses = new Set(["applied", "interview", "offer", "rejected"]);
+  const appliedStatuses = new Set(["sudah dilamar", "applied", "interview", "offer", "rejected"]);
   return new Set(
     jobs
       .filter((job) => appliedStatuses.has(normalizeStatus(job.pipelineStatus)))
@@ -182,13 +200,11 @@ function filterReasonsForJob(job) {
 }
 
 function isApplication(job) {
-  return ["applied", "skipped", "failed", "rejected", "interview", "offer", "scheduled", "applying"].includes(
-    normalizeStatus(job.pipelineStatus)
-  );
+  return normalizeStatus(job.pipelineStatus) === "sudah dilamar";
 }
 
 function isAutoApplyQueue(job) {
-  return ["siap apply", "scheduled", "applying", "skipped", "failed"].includes(normalizeStatus(job.pipelineStatus));
+  return normalizeStatus(job.pipelineStatus) === "siap dilamar";
 }
 
 function formatLogData(data = {}) {
@@ -244,9 +260,8 @@ function sortNewestAppliedFirst(jobs) {
 
 function statusClass(status) {
   const value = normalizeStatus(status);
-  if (value === "applied" || value === "siap apply" || value === "scheduled") return "ready";
-  if (value === "skipped" || value === "review perusahaan" || value === "applying") return "review";
-  if (value === "failed" || value === "rejected") return "danger";
+  if (value === "siap dilamar") return "ready";
+  if (value === "sudah dilamar") return "applied-tag";
   return "";
 }
 
@@ -462,6 +477,188 @@ function AnswerSelect({ label, name, value, options, onChange }) {
   );
 }
 
+const REJECTION_LABELS = {
+  alreadyApplied: "Sudah pernah dilamar",
+  closedJob: "Lowongan sudah ditutup",
+  keywordMismatch: "Keyword tidak cocok",
+  outsideTargetLocation: "Lokasi di luar target",
+  missingLocation: "Lokasi tidak terbaca",
+};
+
+function RejectionGroup({ reasonKey, count, items }) {
+  const [open, setOpen] = useState(false);
+  const label = REJECTION_LABELS[reasonKey] || reasonKey;
+
+  return (
+    <div className={`rejection-group${open ? " is-open" : ""}`} data-reason={reasonKey}>
+      <button type="button" className="rejection-summary" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <span className="rejection-dot" aria-hidden="true" />
+        <span className="rejection-label">{label}</span>
+        <em className="rejection-count">{count}</em>
+        <span className="rejection-caret" aria-hidden="true">{"\u25b8"}</span>
+      </button>
+      {open && (
+        <div className="rejection-detail">
+          {items.length === 0 ? (
+            <p className="modal-note">Detail per lowongan tidak tersimpan untuk kategori ini.</p>
+          ) : (
+            <ul className="rejection-job-list">
+              {items.map((item, index) => (
+                <li key={`${item.jobUrl || item.jobTitle}-${index}`}>
+                  <div className="rejection-job-head">
+                    {item.jobUrl ? (
+                      <a href={item.jobUrl} target="_blank" rel="noreferrer">{item.jobTitle || "(tanpa judul)"}</a>
+                    ) : (
+                      <strong>{item.jobTitle || "(tanpa judul)"}</strong>
+                    )}
+                    <small>{[item.company, item.source, item.location].filter(Boolean).join(" \u00b7 ")}</small>
+                  </div>
+                  <p className="rejection-why">{item.detail}</p>
+                  {(item.missingKeywords || []).length > 0 && (
+                    <div className="modal-chip-row">
+                      <span className="rejection-why-label">Keyword hilang:</span>
+                      {item.missingKeywords.map((word) => (
+                        <span className="modal-chip modal-chip-warning" key={word}>{word}</span>
+                      ))}
+                    </div>
+                  )}
+                  {item.keyword && <small className="rejection-source-keyword">Dicari dengan: {item.keyword}</small>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {count > items.length && (
+            <p className="modal-note">Menampilkan {items.length} dari {count} lowongan.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ScrapeReportModal({ report, onClose }) {
+  const [showRejections, setShowRejections] = useState(true);
+  const rejected = report.rejectionBreakdown || {};
+  const queued = report.autoQueue || { queued: 0, skipped: 0 };
+  const imported = report.importSummary || { imported: 0, updated: 0 };
+  const samples = report.rejectionSamples || [];
+  const missingTerms = report.keywordMissingTerms || [];
+  const scrapeErrors = report.errors || [];
+
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  const groups = Object.keys(REJECTION_LABELS)
+    .map((key) => ({
+      key,
+      count: rejected[key] || 0,
+      items: samples.filter((item) => item.reason === key),
+    }))
+    .filter((group) => group.count > 0);
+
+  const stats = [
+    { label: "Ditemukan", value: report.extracted || 0 },
+    { label: "Detail terbaca", value: `${report.detailsEnriched || 0}/${report.detailsAttempted || 0}` },
+    { label: "Lolos filter", value: report.matchedFilters || 0, accent: true },
+    { label: "Tidak sesuai", value: report.filteredOut || 0, expandable: true },
+    { label: "Duplikat", value: report.duplicatesRemoved || 0 },
+    { label: "Lowongan baru", value: imported.imported || 0 },
+    { label: "Masuk queue", value: queued.queued || 0, accent: true },
+  ];
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <div
+        className="modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="scrape-report-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head">
+          <span className="modal-head-icon" aria-hidden="true">{"\u2691"}</span>
+          <div className="modal-head-text">
+            <h3 id="scrape-report-title">Hasil Scraping</h3>
+            <p className="section-subtitle">Ringkasan lengkap plus alasan tiap lowongan tersaring.</p>
+          </div>
+          <button type="button" className="modal-close" aria-label="Tutup" onClick={onClose}>{"\u00d7"}</button>
+        </div>
+
+        <div className="modal-body">
+          <div className="modal-stat-grid">
+            {stats.map((stat) =>
+              stat.expandable && groups.length > 0 ? (
+                <button
+                  type="button"
+                  key={stat.label}
+                  className={`modal-stat modal-stat-button${showRejections ? " is-open" : ""}`}
+                  aria-expanded={showRejections}
+                  onClick={() => setShowRejections((value) => !value)}
+                >
+                  <strong>{stat.value}</strong>
+                  <small>
+                    {stat.label}
+                    <span className="modal-stat-caret" aria-hidden="true">{"\u25b8"}</span>
+                  </small>
+                </button>
+              ) : (
+                <div className={`modal-stat${stat.accent ? " modal-stat-accent" : ""}`} key={stat.label}>
+                  <strong>{stat.value}</strong>
+                  <small>{stat.label}</small>
+                </div>
+              )
+            )}
+          </div>
+
+          {report.detailLimitReached && (
+            <p className="modal-note">Batas pemeriksaan {report.detailLimit} halaman detail tercapai.</p>
+          )}
+          {scrapeErrors.length > 0 && (
+            <p className="modal-note modal-note-warning">
+              {scrapeErrors.length} pencarian gagal. {scrapeErrors[0].source}: {scrapeErrors[0].error}
+            </p>
+          )}
+
+          {showRejections && groups.length > 0 && (
+            <section className="modal-section">
+              <h4>Alasan tidak sesuai</h4>
+              <div className="rejection-list">
+                {groups.map((group) => (
+                  <RejectionGroup key={group.key} reasonKey={group.key} count={group.count} items={group.items} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {missingTerms.length > 0 && (
+            <section className="modal-section">
+              <h4>Keyword yang paling sering tidak cocok</h4>
+              <div className="modal-chip-row">
+                {missingTerms.map((item) => (
+                  <span className="modal-chip" key={item.term}>
+                    {item.term}
+                    <em>{item.count}</em>
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <div className="modal-foot">
+          <p className="modal-foot-hint">Tekan Esc atau klik di luar untuk menutup.</p>
+          <button type="button" className="primary-button" onClick={onClose}>Tutup</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AutoApplyPanel({ view = "jobs" }) {
   const [state, setState] = useState(emptyState);
   const [loading, setLoading] = useState(true);
@@ -470,9 +667,12 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   const [runningApply, setRunningApply] = useState(false);
   const [stoppingApply, setStoppingApply] = useState(false);
   const [status, setStatus] = useState({ type: "", message: "" });
+  const [scrapeReport, setScrapeReport] = useState(null);
+  const [scrapeReportOpen, setScrapeReportOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedSource, setSelectedSource] = useState("All");
   const [search, setSearch] = useState("");
+  const [autoApplySection, setAutoApplySection] = useState("queue");
   const [tablePages, setTablePages] = useState({
     explore: 1,
     applications: 1,
@@ -481,9 +681,13 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
   const counts = useMemo(() => countByStatus(state.jobs || []), [state.jobs]);
   const applicationJobs = useMemo(() => sortNewestAppliedFirst((state.jobs || []).filter(isApplication)), [state.jobs]);
-  const readyJobs = useMemo(() => (state.jobs || []).filter((job) => job.pipelineStatus === "Siap Apply"), [state.jobs]);
+  const readyJobs = useMemo(() => (state.jobs || []).filter((job) => job.pipelineStatus === "Siap Dilamar"), [state.jobs]);
   const readyJobsForSelectedSource = useMemo(
-    () => readyJobs.filter((job) => selectedSource === "All" || normalizeStatus(job.source) === normalizeStatus(selectedSource)),
+    () => readyJobs.filter(
+      (job) =>
+        ["", "queued"].includes(normalizeStatus(job.automationStatus)) &&
+        (selectedSource === "All" || normalizeStatus(job.source) === normalizeStatus(selectedSource))
+    ),
     [readyJobs, selectedSource]
   );
   const autoApplyJobs = useMemo(() => (state.jobs || []).filter(isAutoApplyQueue), [state.jobs]);
@@ -545,6 +749,10 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   }, []);
 
   useEffect(() => {
+    setStatus({ type: "", message: "" });
+  }, [view]);
+
+  useEffect(() => {
     const runStatus = normalizeStatus(state.automationRun?.status);
     if (!["starting", "running"].includes(runStatus)) return undefined;
 
@@ -599,7 +807,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   async function patchJob(jobId, patch, message) {
     try {
       const nextPatch =
-        patch.pipelineStatus === "Applied" && !patch.appliedAt
+        patch.pipelineStatus === "Sudah Dilamar" && !patch.appliedAt
           ? { ...patch, appliedAt: new Date().toISOString() }
           : patch;
       const response = await updateAutoApplyJob(jobId, nextPatch);
@@ -624,7 +832,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
       const summary = response.data.queueSummary;
       setStatus({
         type: "success",
-        message: `${summary.considered} lowongan diperiksa sekaligus: ${summary.queued} menjadi Siap Apply, ${summary.skipped} tidak lolos filter.`,
+        message: `${summary.considered} lowongan diperiksa: ${summary.queued} menjadi Siap Dilamar, ${summary.skipped} tetap Disimpan karena tidak lolos filter.`,
       });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
@@ -640,22 +848,12 @@ export default function AutoApplyPanel({ view = "jobs" }) {
       const scrape = response.data.scrapeSummary;
       const imported = response.data.importSummary;
       const queued = scrape.autoQueue || { queued: 0, skipped: 0 };
-      const rejected = scrape.rejectionBreakdown || {};
-      const rejectionDetails = [
-        rejected.alreadyApplied ? `${rejected.alreadyApplied} sudah pernah dilamar` : "",
-        rejected.closedJob ? `${rejected.closedJob} lowongan sudah ditutup` : "",
-        rejected.keywordMismatch ? `${rejected.keywordMismatch} keyword tidak cocok` : "",
-        rejected.outsideTargetLocation ? `${rejected.outsideTargetLocation} lokasi di luar target` : "",
-        rejected.missingLocation ? `${rejected.missingLocation} lokasi tidak terbaca` : "",
-      ]
-        .filter(Boolean)
-        .join(", ");
-      const detailLimitNotice = scrape.detailLimitReached
-        ? ` Batas pemeriksaan ${scrape.detailLimit} halaman detail tercapai.`
-        : "";
+      const scrapeErrors = scrape.errors || [];
+      setScrapeReport({ ...scrape, importSummary: imported });
+      setScrapeReportOpen(true);
       setStatus({
-        type: scrape.matchedFilters ? "success" : "warning",
-        message: `Scraping selesai: ${scrape.extracted} ditemukan, ${scrape.detailsEnriched || 0}/${scrape.detailsAttempted || 0} detail berhasil dibaca, ${scrape.matchedFilters} lolos filter, ${scrape.filteredOut} tidak sesuai, ${scrape.duplicatesRemoved} duplikat, ${imported.imported} baru, ${queued.queued} masuk queue.${rejectionDetails ? ` Alasan: ${rejectionDetails}.` : ""}${detailLimitNotice}`,
+        type: scrape.matchedFilters && !scrapeErrors.length ? "success" : "warning",
+        message: `Scraping selesai: ${scrape.extracted} ditemukan, ${scrape.matchedFilters} lolos filter, ${imported.imported} baru, ${queued.queued} masuk queue.`,
       });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
@@ -764,55 +962,65 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     ]
       .map(([label, value]) => [label, value === null || value === undefined ? "" : String(value)])
       .filter(([, value]) => value.trim());
+    const statusLabels = {
+      idle: "Belum berjalan",
+      starting: "Menyiapkan",
+      running: "Sedang berjalan",
+      stopped: "Dihentikan",
+      completed: "Selesai",
+      completed_with_errors: "Selesai dengan catatan",
+      blocked: "Perlu tindakan",
+      failed: "Gagal",
+    };
+    const runStatus = normalizeStatus(run.status) || "idle";
 
     return (
       <div className="run-progress">
         <div className="run-progress-header">
           <div>
-            <strong>{run.status || "idle"}</strong>
+            <strong><i className={`run-status-dot ${runStatus}`} />{statusLabels[runStatus] || run.status}</strong>
             <span>{run.message || "Menunggu proses."}</span>
           </div>
-          <small>
-            {processed}/{total} selesai
-          </small>
+          <small>{percent}%</small>
         </div>
         <div className="progress-track" aria-label="Progress auto apply">
           <span style={{ width: `${percent}%` }} />
         </div>
         <div className="run-stats">
-          <span>Applied: {run.applied || 0}</span>
-          <span>Skipped: {run.skipped || 0}</span>
-          <span>Failed: {run.failed || 0}</span>
+          <div><strong>{processed}/{total}</strong><span>Diproses</span></div>
+          <div><strong>{run.applied || 0}</strong><span>Berhasil</span></div>
+          <div><strong>{run.skipped || 0}</strong><span>Perlu ditinjau</span></div>
+          <div><strong>{run.failed || 0}</strong><span>Gagal</span></div>
         </div>
         {(run.currentJobTitle || run.currentCompany) && (
-          <p className="current-job">
-            {run.currentCompany || "-"} - {run.currentJobTitle || "-"}
-          </p>
-        )}
-        {detailItems.length > 0 && (
-          <div className="run-detail-grid">
-            {detailItems.map(([label, value]) => (
-              <div key={label}>
-                <span>{label}</span>
-                <strong>{value}</strong>
-              </div>
-            ))}
+          <div className="current-job">
+            <span>Sedang diproses</span>
+            <strong>{run.currentCompany || "-"} · {run.currentJobTitle || "-"}</strong>
           </div>
         )}
-        <div className="run-log">
-          {logs.slice(0, 10).map((log) => {
-            const detail = formatLogData(log.data);
-            return (
-              <div key={log.id}>
-                <span>{new Date(log.createdAt).toLocaleTimeString()}</span>
-                <p>
-                  {log.message}
-                  {detail && <small>{detail}</small>}
-                </p>
+        {(detailItems.length > 0 || logs.length > 0) && (
+          <details className="run-technical-details">
+            <summary>Detail aktivitas <span>{logs.length}</span></summary>
+            {detailItems.length > 0 && (
+              <div className="run-detail-grid">
+                {detailItems.map(([label, value]) => (
+                  <div key={label}><span>{label}</span><strong>{value}</strong></div>
+                ))}
               </div>
-            );
-          })}
-        </div>
+            )}
+            <div className="run-log">
+              {logs.slice(0, 10).map((log) => {
+                const detail = formatLogData(log.data);
+                return (
+                  <div key={log.id}>
+                    <span>{new Date(log.createdAt).toLocaleTimeString()}</span>
+                    <p>{log.message}{detail && <small>{detail}</small>}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </details>
+        )}
       </div>
     );
   }
@@ -822,26 +1030,36 @@ export default function AutoApplyPanel({ view = "jobs" }) {
       <div className="auto-summary-grid">
         <div className="metric-card">
           <span>{state.jobs?.length || 0}</span>
-          <small>Lowongan masuk</small>
+          <small>Total lowongan</small>
         </div>
         <div className="metric-card">
-          <span>{applicationJobs.length}</span>
-          <small>Total lamaran</small>
-        </div>
-        <div className="metric-card">
-          <span>{counts.Applied || 0}</span>
-          <small>Sudah applied</small>
+          <span>{counts.Disimpan || 0}</span>
+          <small>Disimpan</small>
         </div>
         <div className="metric-card">
           <span>{readyJobs.length}</span>
-          <small>Siap dikirim</small>
+          <small>Siap dilamar</small>
+        </div>
+        <div className="metric-card">
+          <span>{counts["Sudah Dilamar"] || 0}</span>
+          <small>Sudah dilamar</small>
         </div>
       </div>
     );
   }
 
   function renderStatus() {
-    return status.message ? <p className={`status ${status.type}`}>{status.message}</p> : null;
+    if (!status.message) return null;
+    return (
+      <p role="status" aria-live="polite" className={`status ${status.type}`}>
+        <span>{status.message}</span>
+        {scrapeReport && (
+          <button type="button" className="status-detail-button" onClick={() => setScrapeReportOpen(true)}>
+            Lihat detail
+          </button>
+        )}
+      </p>
+    );
   }
 
   function renderFilters(statusFilterOptions, searchPlaceholder = "Role, perusahaan, skill, lokasi") {
@@ -869,10 +1087,10 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     return (
       <div className="auto-toolbar">
         <button className="primary-button" type="button" onClick={handleScrapeWebsites} disabled={loading || scraping}>
-          {scraping ? "Scraping..." : "Scrape Website & Auto Queue"}
+          {scraping ? "Mencari lowongan..." : "Cari lowongan baru"}
         </button>
         <button className="secondary-button" type="button" onClick={handleQueueAllEligibleJobs} disabled={loading || !state.jobs?.length}>
-          Jadikan Semua yang Lolos Filter Siap Apply
+          Siapkan yang lolos filter
         </button>
         <button className="secondary-button" type="button" onClick={loadState} disabled={loading}>
           Refresh
@@ -883,7 +1101,12 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
   function renderJobsTable(jobs, mode = "explore") {
     if (loading) return <div className="empty-state">Memuat data...</div>;
-    if (!jobs.length) return <div className="empty-state">Belum ada data pada tampilan ini.</div>;
+    if (!jobs.length) return (
+      <div className="empty-state">
+        <strong>{mode === "explore" ? "Belum ada lowongan yang ditampilkan" : "Belum ada lamaran pada tampilan ini"}</strong>
+        <p>{mode === "explore" ? "Klik Cari lowongan baru untuk mulai, atau sesuaikan filter jika Anda sudah memiliki lowongan." : "Lowongan yang Anda proses akan muncul di sini. Coba periksa filter yang dipilih."}</p>
+      </div>
+    );
 
     const showAppliedAt = mode !== "explore";
     const totalPages = Math.max(1, Math.ceil(jobs.length / TABLE_PAGE_SIZE));
@@ -894,21 +1117,26 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
     return (
       <div className="table-block">
-        <div className="job-list">
+        <div className={`job-list job-list-${mode}`}>
           {visibleJobs.map((job) => {
             const filterReasons = filterReasonsForJob(job);
-            const showFilterReasons = normalizeStatus(job.pipelineStatus) === "archived" && filterReasons.length > 0;
+            const showFilterReasons = normalizeStatus(job.pipelineStatus) === "disimpan" && filterReasons.length > 0;
             const normalizedJobStatus = normalizeStatus(job.pipelineStatus);
+            const automationStatus = normalizeStatus(job.automationStatus);
             const skills = splitJobSkills(job.matchedPortfolioSkills);
-            const canRetry = ["skipped", "failed"].includes(normalizedJobStatus);
-            const showQueueAction = mode === "explore" || canRetry;
+            const isQueued = normalizedJobStatus === "siap dilamar";
+            const showQueueAction = mode === "explore" && normalizedJobStatus === "disimpan";
+            const showRetryAction = mode === "autoApply" && ["failed", "needs_review"].includes(automationStatus);
+            const compactCard = true;
             const contextLabel = mode === "applications" ? "Status respons" : mode === "autoApply" ? "Langkah berikutnya" : "Kecocokan pencarian";
             const contextValue =
               mode === "applications"
                 ? job.responseStatus || job.nextAction || "Menunggu pembaruan"
                 : mode === "autoApply"
                   ? job.nextAction || "Menunggu worker auto apply"
-                  : job.matchedQuery || job.nextAction || "Belum ada catatan kecocokan";
+                  : isQueued
+                    ? "Sudah di antrean. Pantau proses di Lamar Otomatis."
+                    : job.matchedQuery || "Tinjau detail lowongan sebelum masuk antrean.";
 
             return (
             <article className={`job-card job-card-${mode}`} key={job.id}>
@@ -919,8 +1147,6 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 <div className="job-heading">
                   <div className="job-card-eyebrow">
                     <span>{job.source || "Manual"}</span>
-                    <i aria-hidden="true" />
-                    <span>{job.id}</span>
                   </div>
                   {job.jobUrl ? (
                     <a className="job-title-link" href={job.jobUrl} target="_blank" rel="noreferrer">
@@ -933,18 +1159,21 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 </div>
                 <div className="job-card-status">
                   <div className="job-status-badges">
-                    <span className={`tag ${statusClass(job.pipelineStatus)}`}>{job.pipelineStatus || "Belum direview"}</span>
-                    <span className={`tag priority-${priorityClass(job.priority)}`}>{job.priority || "Low"}</span>
+                    <span className={`tag ${statusClass(job.pipelineStatus)}`}>{job.pipelineStatus || "Disimpan"}</span>
                   </div>
-                  <SoftSelect
-                    className="status-soft-select"
-                    value={job.pipelineStatus || "Belum direview"}
-                    options={jobStatusOptions}
-                    onValueChange={(nextStatus) => patchJob(job.id, { pipelineStatus: nextStatus }, `Status diubah ke ${nextStatus}.`)}
-                  />
+
                 </div>
               </header>
 
+              {compactCard ? (
+                <div className="compact-job-info">
+                  <strong className="compact-salary">{formatSalary(job.salaryRaw)}</strong>
+                  <span className="compact-location">{job.location || "Lokasi belum tersedia"}</span>
+                  <div className="compact-work-tags">
+                    {[job.employmentType, job.workArrangement].filter(Boolean).map((value, index) => <span key={index}>{value}</span>)}
+                  </div>
+                </div>
+              ) : (
               <div className="job-facts">
                 <div>
                   <span>Lokasi</span>
@@ -952,7 +1181,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 </div>
                 <div>
                   <span>Gaji</span>
-                  <strong>{job.salaryRaw || "Tidak ditampilkan"}</strong>
+                  <strong>{formatSalary(job.salaryRaw)}</strong>
                 </div>
                 <div>
                   <span>Tipe kerja</span>
@@ -964,16 +1193,8 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 </div>
               </div>
 
-              {skills.length > 0 && (
-                <div className="job-skill-row">
-                  <span>Skill cocok</span>
-                  <div>
-                    {skills.map((skill) => (
-                      <em key={skill}>{skill}</em>
-                    ))}
-                  </div>
-                </div>
               )}
+              {skills.length > 0 && <JobSkills skills={skills} compact={compactCard} />}
 
               {showFilterReasons && (
                 <div className="filter-reason-box">
@@ -986,33 +1207,52 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 </div>
               )}
 
-              <footer className="job-card-footer">
-                <div className="job-context">
-                  <span>{contextLabel}</span>
-                  <strong>{contextValue}</strong>
-                  {showAppliedAt && job.appliedAt && <small>Applied {formatDateTime(job.appliedAt)}</small>}
+              {mode === "autoApply" && (
+                <div className="auto-queue-note">
+                  <span>Proses</span>
+                  <p>{contextValue}</p>
                 </div>
+              )}
+
+              <footer className="job-card-footer">
+                {mode === "applications" && <div className="job-context">
+                  <span>{mode === "explore" && isQueued ? "Langkah berikutnya" : contextLabel}</span>
+                  <strong>{contextValue}</strong>
+                  {showAppliedAt && job.appliedAt && <small>Dilamar {formatDateTime(job.appliedAt)}</small>}
+                </div>
+                }
                 <div className="job-card-actions">
                   {job.jobUrl && (
                     <a className="job-action job-action-detail" href={job.jobUrl} target="_blank" rel="noreferrer">
                       Buka detail
                     </a>
                   )}
-                  {mode === "explore" && normalizedJobStatus !== "favorit" && (
-                    <button className="job-action" type="button" onClick={() => patchJob(job.id, { pipelineStatus: "Favorit" }, "Lowongan disimpan ke favorit.")}>
-                      Simpan
-                    </button>
-                  )}
                   {showQueueAction && (
-                    <button className="job-action job-action-primary" type="button" onClick={() => patchJob(job.id, { pipelineStatus: "Siap Apply" }, "Lowongan masuk queue Lamar Otomatis.")}>
-                      {canRetry ? "Coba lagi" : "Masuk queue"}
+                    <button className="job-action job-action-primary" type="button" onClick={() => patchJob(job.id, { pipelineStatus: "Siap Dilamar" }, "Lowongan siap diproses di Lamar Otomatis.")}>
+                      Siapkan
                     </button>
                   )}
-                  {normalizedJobStatus !== "archived" && (
-                    <button className="job-action job-action-muted" type="button" onClick={() => patchJob(job.id, { pipelineStatus: "Archived" }, "Lowongan diarsipkan.")}>
-                      Arsipkan
+                  {showRetryAction && (
+                    <button
+                      className="job-action job-action-primary"
+                      type="button"
+                      onClick={() => patchJob(job.id, { automationStatus: "queued", nextAction: "Siap dicoba kembali oleh BrowserAct" }, "Lowongan siap dicoba kembali.")}
+                    >
+                      Coba lagi
                     </button>
                   )}
+                  <details className="job-manage">
+                    <summary className="job-action" aria-label="Kelola lowongan">Kelola</summary>
+                    <div className="job-manage-content">
+                      <span className="job-manage-label">Ubah status</span>
+                  <SoftSelect
+                    className="status-soft-select"
+                    value={job.pipelineStatus || "Disimpan"}
+                    options={jobStatusOptions}
+                    onValueChange={(nextStatus) => patchJob(job.id, { pipelineStatus: nextStatus }, `Status diubah ke ${nextStatus}.`)}
+                  />
+                    </div>
+                  </details>
                 </div>
               </footer>
             </article>
@@ -1044,21 +1284,29 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   function renderJobsExplorer() {
     return (
       <div className="auto-apply-layout">
-        <section className="panel auto-apply-control">
-          <div className="section-heading">
-            <span className="section-number">01</span>
+        <section className="explorer-overview" aria-labelledby="explorer-title">
+          <div className="explorer-title-row">
             <div>
-              <h2>Jelajahi Lowongan</h2>
-              <p className="section-subtitle">Temukan role yang cocok, simpan, lalu kirim ke queue auto apply.</p>
+              <h1 id="explorer-title">Lowongan</h1>
+              <p>Temukan dan siapkan peluang yang cocok untuk Anda.</p>
             </div>
+            <button className="primary-button" type="button" onClick={handleScrapeWebsites} disabled={loading || scraping}>
+              {scraping ? "Mencari lowongan..." : "+ Cari lowongan baru"}
+            </button>
           </div>
           {renderSummary()}
-          {renderScrapeToolbar()}
           {renderStatus()}
         </section>
 
         <section className="panel">
-          {renderFilters(exploreStatusOptions)}
+          <div className="home-results-heading">
+            <div><h2>Daftar lowongan <span className="result-count">{filteredExploreJobs.length}</span></h2></div>
+            <div className="explorer-list-actions">
+              <button className="secondary-button" type="button" onClick={handleQueueAllEligibleJobs} disabled={loading || !state.jobs?.length}>Siapkan yang lolos filter</button>
+              <button className="secondary-button" type="button" onClick={loadState} disabled={loading}>Refresh</button>
+            </div>
+          </div>
+          {renderFilters(exploreStatusOptions, "Cari posisi, perusahaan, atau keahlian")}
           {renderJobsTable(filteredExploreJobs, "explore")}
         </section>
       </div>
@@ -1068,19 +1316,24 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   function renderApplications() {
     return (
       <div className="auto-apply-layout">
-        <section className="panel auto-apply-control">
-          <div className="section-heading">
-            <span className="section-number">02</span>
+        <section className="explorer-overview" aria-labelledby="applications-title">
+          <div className="explorer-title-row">
             <div>
-              <h2>Lamaran Saya</h2>
-              <p className="section-subtitle">Lamaran terbaru tampil paling atas, lengkap dengan waktu apply.</p>
+              <h1 id="applications-title">Lamaran Saya</h1>
+              <p>Lamaran terbaru tampil paling atas, lengkap dengan waktu apply.</p>
             </div>
+            <button className="primary-button" type="button" onClick={loadState} disabled={loading}>
+              {loading ? "Memuat..." : "Perbarui data"}
+            </button>
           </div>
           {renderSummary()}
           {renderStatus()}
         </section>
 
         <section className="panel">
+          <div className="home-results-heading">
+            <div><h2>Daftar lamaran <span className="result-count">{filteredApplicationJobs.length}</span></h2></div>
+          </div>
           {renderFilters(applicationStatusOptions, "Role, perusahaan, sumber, lokasi, atau catatan")}
           {renderJobsTable(filteredApplicationJobs, "applications")}
         </section>
@@ -1135,60 +1388,118 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
     return (
       <div className="auto-apply-layout">
-        <section className="panel auto-apply-control">
-          <div className="section-heading">
-            <span className="section-number">03</span>
+        <section className="explorer-overview" aria-labelledby="auto-apply-title">
+          <div className="explorer-title-row">
             <div>
-              <h2>Lamar Otomatis</h2>
-              <p className="section-subtitle">Assistant membuka lowongan, memetakan pertanyaan, submit otomatis, lalu lanjut ke job berikutnya jika portal memblokir.</p>
+              <h1 id="auto-apply-title">Lamar Otomatis</h1>
+              <p>Kelola antrean, pantau proses, dan siapkan jawaban screening.</p>
+            </div>
+            <div className="auto-apply-ready-count">
+              <strong>{readyJobsForSelectedSource.length}</strong>
+              <span>siap diproses</span>
             </div>
           </div>
           {renderSummary()}
-          <div className="auto-apply-source-scope">
-            <div className="auto-apply-source-picker">
-              <span>Target auto apply</span>
+        </section>
+
+        <div className="auto-apply-section-tabs" role="tablist" aria-label="Bagian Lamar Otomatis">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={autoApplySection === "queue"}
+            className={autoApplySection === "queue" ? "active" : ""}
+            onClick={() => setAutoApplySection("queue")}
+          >
+            Antrean & Progres
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={autoApplySection === "answers"}
+            className={autoApplySection === "answers" ? "active" : ""}
+            onClick={() => setAutoApplySection("answers")}
+          >
+            Answer Bank
+            <span>{answerCompletion}%</span>
+          </button>
+        </div>
+
+        {autoApplySection === "queue" && <>
+        <section className="panel auto-apply-control">
+          <div className="queue-control-heading">
+            <div>
+              <h2>Jalankan antrean</h2>
+              <p>Pilih sumber lowongan, lalu jalankan lamaran yang sudah siap.</p>
+            </div>
+            <button
+              className={`answer-readiness-chip ${answerCompletion === 100 ? "is-complete" : ""}`}
+              type="button"
+              onClick={() => setAutoApplySection("answers")}
+              aria-label={`Buka Answer Bank, ${answerCompletion}% lengkap`}
+            >
+              <span className="answer-readiness-dot" aria-hidden="true" />
+              <span>Answer Bank</span>
+              <strong>{answerCompletion}%</strong>
+            </button>
+          </div>
+
+          <div className="queue-control-body">
+            <div className="queue-source-control">
+              <span>Sumber lowongan</span>
               <SoftSelect value={selectedSource} options={sourceOptions} onValueChange={setSelectedSource} />
             </div>
-            <small>{readyJobsForSelectedSource.length} lowongan siap dari sumber ini</small>
-          </div>
-          <div className="auto-toolbar">
-            <button className="primary-button" type="button" onClick={handleRunAutoApply} disabled={runningApply || autoApplyIsActive || !readyJobsForSelectedSource.length}>
+            <div className="queue-ready-summary" aria-live="polite">
+              <strong>{readyJobsForSelectedSource.length}</strong>
+              <span>lowongan siap diproses</span>
+            </div>
+            <button className="primary-button queue-run-button" type="button" onClick={handleRunAutoApply} disabled={runningApply || autoApplyIsActive || !readyJobsForSelectedSource.length}>
               {runningApply || autoApplyIsActive
-                ? "Auto Apply Berjalan..."
-                : selectedSource === "All"
-                  ? "Run Semua Sumber"
-                  : `Run ${selectedSource}`}
+                ? "Sedang berjalan..."
+                : "Jalankan antrean"}
             </button>
-            <button className="danger-button" type="button" onClick={handleStopAutoApply} disabled={stoppingApply || !autoApplyIsActive}>
-              {stoppingApply ? "Menghentikan..." : "Stop Auto Apply"}
+          </div>
+
+          <div className="queue-control-actions">
+            <button className="queue-secondary-button" type="button" onClick={handlePrepareRun}>
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M10 2.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15Z" />
+                <path d="m6.7 10 2.05 2.05 4.55-4.55" />
+              </svg>
+              Periksa kesiapan{selectedSource === "All" ? "" : ` ${selectedSource}`}
             </button>
-            <button className="secondary-button" type="button" onClick={handlePrepareRun}>
-              Cek Kesiapan{selectedSource === "All" ? "" : ` ${selectedSource}`}
+            <button className={`queue-secondary-button refresh ${loading ? "is-loading" : ""}`} type="button" onClick={loadState} disabled={loading}>
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <path d="M15.2 6.2V2.8m0 3.4h-3.4" />
+                <path d="M15 6.1A6.5 6.5 0 1 0 16.4 12" />
+              </svg>
+              {loading ? "Memperbarui..." : "Perbarui data"}
             </button>
-            <button className="secondary-button" type="button" onClick={loadState} disabled={loading}>
-              Refresh
-            </button>
+            {(autoApplyIsActive || stoppingApply) && (
+              <button className="danger-button queue-stop-button" type="button" onClick={handleStopAutoApply} disabled={stoppingApply}>
+                {stoppingApply ? "Menghentikan..." : "Hentikan proses"}
+              </button>
+            )}
           </div>
           {renderStatus()}
         </section>
 
         <section className="panel">
           <div className="section-heading">
-            <span className="section-number">P</span>
             <div>
-              <h2>Progress Auto Apply</h2>
-              <p className="section-subtitle">Lihat assistant sedang berada di step mana dan apa aksi terakhirnya.</p>
+              <h2>Progres pengiriman</h2>
+              <p className="section-subtitle">Pantau lowongan yang sedang diproses dan tindakan terakhir.</p>
             </div>
           </div>
           {renderRunProgress()}
         </section>
+        </>}
 
+        {autoApplySection === "answers" && (
         <section className="panel">
           <div className="section-heading">
-            <span className="section-number">A</span>
             <div>
               <h2>Answer Bank</h2>
-              <p className="section-subtitle">Jawaban siap pakai agar form screening tidak bikin proses stuck.</p>
+              <p className="section-subtitle">Siapkan jawaban yang akan dipakai saat mengisi formulir screening.</p>
             </div>
           </div>
 
@@ -1362,18 +1673,20 @@ export default function AutoApplyPanel({ view = "jobs" }) {
             </button>
           </div>
         </section>
+        )}
 
+        {autoApplySection === "queue" && (
         <section className="panel">
           <div className="section-heading">
-            <span className="section-number">Q</span>
             <div>
-              <h2>Queue Lamar Otomatis</h2>
-              <p className="section-subtitle">Filter queue hanya untuk status yang relevan dengan proses otomatisasi.</p>
+              <h2>Antrean lamaran <span className="result-count">{filteredAutoApplyJobs.length}</span></h2>
+              <p className="section-subtitle">Lowongan berstatus Siap Dilamar yang menunggu proses.</p>
             </div>
           </div>
           {renderFilters(autoApplyStatusOptions)}
           {renderJobsTable(filteredAutoApplyJobs, "autoApply")}
         </section>
+        )}
       </div>
     );
   }
@@ -1500,8 +1813,18 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     );
   }
 
-  if (view === "applications") return renderApplications();
-  if (view === "autoApply") return renderAutoApply();
-  if (view === "sources") return renderSources();
-  return renderJobsExplorer();
+  let content;
+  if (view === "applications") content = renderApplications();
+  else if (view === "autoApply") content = renderAutoApply();
+  else if (view === "sources") content = renderSources();
+  else content = renderJobsExplorer();
+
+  return (
+    <>
+      {content}
+      {scrapeReportOpen && scrapeReport && (
+        <ScrapeReportModal report={scrapeReport} onClose={() => setScrapeReportOpen(false)} />
+      )}
+    </>
+  );
 }

@@ -9,15 +9,27 @@ import {
 
 const {
   appliedIdentitySet,
+  automationStatusFromJob,
   autoQueueDecision,
   buildScrapeTargets,
   canonicalJobUrl,
   matchesKeyword,
   matchesSelectedSource,
   matchesTargetLocation,
+  normalizePipelineStatus,
   parseJobDetailMarkdown,
   wasAlreadyApplied,
 } = autoApplyFilterInternals;
+
+test("legacy job states migrate to the three user-facing statuses", () => {
+  assert.equal(normalizePipelineStatus("Favorit"), "Disimpan");
+  assert.equal(normalizePipelineStatus("Archived"), "Disimpan");
+  assert.equal(normalizePipelineStatus("Applying"), "Siap Dilamar");
+  assert.equal(normalizePipelineStatus("Failed"), "Siap Dilamar");
+  assert.equal(normalizePipelineStatus("Interview"), "Sudah Dilamar");
+  assert.equal(automationStatusFromJob({ pipelineStatus: "Failed" }), "failed");
+  assert.equal(automationStatusFromJob({ pipelineStatus: "Siap Dilamar" }), "queued");
+});
 
 test("auto apply source selection only accepts the selected portal", () => {
   assert.equal(matchesSelectedSource({ source: "Glints" }, "Glints"), true);

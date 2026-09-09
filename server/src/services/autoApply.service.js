@@ -110,6 +110,45 @@ const DEFAULT_STATE = {
   updatedAt: null,
 };
 const STALE_APPLYING_MS = 10 * 60 * 1000;
+const PIPELINE_STATUS = {
+  SAVED: "Disimpan",
+  READY: "Siap Dilamar",
+  APPLIED: "Sudah Dilamar",
+};
+
+function normalizePipelineStatus(status) {
+  const value = normalizeStatus(status);
+  if (["sudah dilamar", "applied", "interview", "offer", "rejected"].includes(value)) {
+    return PIPELINE_STATUS.APPLIED;
+  }
+  if (["siap dilamar", "siap apply", "ready", "scheduled", "applying", "skipped", "failed", "needs input"].includes(value)) {
+    return PIPELINE_STATUS.READY;
+  }
+  return PIPELINE_STATUS.SAVED;
+}
+
+function responseStatusFromLegacyJob(job = {}) {
+  const status = normalizeStatus(job.pipelineStatus);
+  if (status === "interview") return "Interview";
+  if (status === "offer") return "Offer";
+  if (status === "rejected") return "Ditolak";
+  return job.responseStatus;
+}
+
+function automationStatusFromJob(job = {}) {
+  const existing = normalizeStatus(job.automationStatus);
+  if (["idle", "queued", "processing", "needs_review", "failed", "submitted"].includes(existing)) {
+    return existing;
+  }
+
+  const legacyStatus = normalizeStatus(job.pipelineStatus);
+  if (["sudah dilamar", "applied", "interview", "offer", "rejected"].includes(legacyStatus)) return "submitted";
+  if (legacyStatus === "applying") return "processing";
+  if (["skipped", "needs input"].includes(legacyStatus)) return "needs_review";
+  if (legacyStatus === "failed") return "failed";
+  if (["siap dilamar", "siap apply", "ready", "scheduled"].includes(legacyStatus)) return "queued";
+  return "idle";
+}
 
 function ensureAutoApplyDir() {
   fs.mkdirSync(AUTO_APPLY_DIR, { recursive: true });
@@ -137,17 +176,14 @@ function readStateFile() {
       },
       rules: { ...DEFAULT_RULES, ...(parsed.rules || {}) },
       jobs: Array.isArray(parsed.jobs)
-        ? parsed.jobs.map((job) =>
-            normalizeStatus(job.pipelineStatus) === "needs input"
-              ? {
-                  ...job,
-                  pipelineStatus: "Skipped",
-                  nextAction: job.nextAction || "Skipped automatically; retry from Siap Apply when desired.",
-                  browserSessionName: "",
-                  remoteAssist: "",
-                }
-              : job
-          )
+        ? parsed.jobs.map((job) => ({
+            ...job,
+            pipelineStatus: normalizePipelineStatus(job.pipelineStatus),
+            automationStatus: automationStatusFromJob(job),
+            responseStatus: responseStatusFromLegacyJob(job),
+            browserSessionName: "",
+            remoteAssist: "",
+          }))
         : [],
       activityLog: Array.isArray(parsed.activityLog) ? parsed.activityLog : [],
       automationRun: parsed.automationRun || null,
@@ -258,10 +294,9 @@ function jobIdentityKeys(job = {}) {
 }
 
 function appliedIdentitySet(jobs = []) {
-  const appliedStatuses = new Set(["applied", "interview", "offer", "rejected"]);
   return new Set(
     jobs
-      .filter((job) => appliedStatuses.has(normalizeStatus(job.pipelineStatus)))
+      .filter((job) => normalizePipelineStatus(job.pipelineStatus) === PIPELINE_STATUS.APPLIED)
       .flatMap((job) => jobIdentityKeys(job))
   );
 }
@@ -304,7 +339,7 @@ function browserActAvailable() {
 
   return {
     ok: result.status === 0,
-    output: clean(`${result.stdout || ""} ${result.stderr || ""}`),
+    output: clean(`${result.stdout || ""} ${result.stderr || ""} ${result.error?.message || ""}`),
   };
 }
 
@@ -316,7 +351,7 @@ function runBrowserAct(args, { timeout = 120000 } = {}) {
 
   const output = `${result.stdout || ""}${result.stderr || ""}`;
   if (result.status !== 0) {
-    throw new Error(clean(output) || `browser-act failed with status ${result.status}`);
+    throw new Error(clean(output) || result.error?.message || `browser-act failed with status ${result.status}`);
   }
 
   return output;
@@ -428,6 +463,19 @@ function matchesKeyword(title, keyword) {
     const alias = KEYWORD_ALIASES[concept];
     if (alias) return alias.test(normalizedTitle);
     return new RegExp(`\\b${concept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(normalizedTitle);
+  });
+}
+
+function keywordMissingConcepts(title, keyword) {
+  const normalizedTitle = normalizedSearchText(title);
+  const concepts = keywordConcepts(keyword);
+  if (!concepts.length) return ["(keyword kosong)"];
+  if (!normalizedTitle) return concepts;
+
+  return concepts.filter((concept) => {
+    const alias = KEYWORD_ALIASES[concept];
+    if (alias) return !alias.test(normalizedTitle);
+    return !new RegExp(`\\b${concept.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(normalizedTitle);
   });
 }
 
@@ -819,7 +867,8 @@ function normalizeJob(row, index = 0, { rules = {} } = {}) {
   const job = {
     id: existingId || `AUTO-${Date.now()}-${index + 1}`,
     priority: clean(pick(row, ["priority"])) || inferPriority(row),
-    pipelineStatus: status || "Belum direview",
+    pipelineStatus: normalizePipelineStatus(status),
+    automationStatus: clean(pick(row, ["automation_status", "automationStatus"])) || automationStatusFromJob({ pipelineStatus: status }),
     nextAction: clean(pick(row, ["next_action"])) || "Review fit and prepare application",
     followUpAt: clean(pick(row, ["follow_up_at"])),
     appliedAt: clean(pick(row, ["applied_at", "Applying Date"])),
@@ -847,8 +896,9 @@ function normalizeJob(row, index = 0, { rules = {} } = {}) {
 
   if (!status && rules.autoQueueImportedJobs) {
     const decision = autoQueueDecision(job, rules);
-    job.pipelineStatus = decision.ok ? "Siap Apply" : "Archived";
-    job.nextAction = decision.ok ? "Auto apply queue" : "Skipped by auto apply filter";
+    job.pipelineStatus = decision.ok ? PIPELINE_STATUS.READY : PIPELINE_STATUS.SAVED;
+    job.automationStatus = decision.ok ? "queued" : "idle";
+    job.nextAction = decision.ok ? "Siap diproses oleh Lamar Otomatis" : "Tidak lolos filter otomatis";
     job.filterReasons = decision.reasons;
     if (!decision.ok) {
       job.notes = clean(`${job.notes || ""} Auto skipped: ${decision.reasons.join(", ")}.`);
@@ -891,7 +941,7 @@ function recoverStaleApplyingJobs(state) {
   let recovered = 0;
   const now = Date.now();
   const jobs = state.jobs.map((job) => {
-    if (normalizeStatus(job.pipelineStatus) !== "applying") {
+    if (automationStatusFromJob(job) !== "processing") {
       return job;
     }
 
@@ -905,7 +955,8 @@ function recoverStaleApplyingJobs(state) {
     recovered += 1;
     return {
       ...job,
-      pipelineStatus: "Siap Apply",
+      pipelineStatus: PIPELINE_STATUS.READY,
+      automationStatus: "queued",
       nextAction: "Recovered from stale auto apply run; ready to retry.",
       browserSessionName: "",
       remoteAssist: "",
@@ -1052,6 +1103,7 @@ export function importAutoApplyJobs(rows = []) {
         ...job,
         id: existing.id,
         pipelineStatus: existing.pipelineStatus || job.pipelineStatus,
+        automationStatus: existing.automationStatus || job.automationStatus,
         updatedAt: new Date().toISOString(),
       });
       updated += 1;
@@ -1095,6 +1147,23 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
   let detailsEnriched = 0;
   let detailLimitReached = false;
   const detailErrors = [];
+  const keywordMismatchSamples = [];
+  const keywordMissingCounts = new Map();
+  const rejectionSamples = [];
+  const pushRejection = (reason, row, target, extra = {}) => {
+    if (rejectionSamples.length >= 400) return;
+    rejectionSamples.push({
+      reason,
+      jobTitle: row.job_title,
+      company: row.company,
+      location: row.location || "",
+      workArrangement: row.work_arrangement || "",
+      source: target.source,
+      jobUrl: row.job_url,
+      keyword: target.keyword,
+      ...extra,
+    });
+  };
   const rejectionBreakdown = {
     alreadyApplied: 0,
     closedJob: 0,
@@ -1119,12 +1188,31 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
           if (wasAlreadyApplied(row, appliedIdentities)) {
             filteredOut += 1;
             rejectionBreakdown.alreadyApplied += 1;
+            pushRejection("alreadyApplied", row, target, { detail: "Sudah ada di daftar lamaran." });
             continue;
           }
 
           if (!matchesKeyword(row.job_title, target.keyword)) {
             filteredOut += 1;
             rejectionBreakdown.keywordMismatch += 1;
+            const missing = keywordMissingConcepts(row.job_title, target.keyword);
+            for (const concept of missing) {
+              keywordMissingCounts.set(concept, (keywordMissingCounts.get(concept) || 0) + 1);
+            }
+            pushRejection("keywordMismatch", row, target, {
+              missingKeywords: missing,
+              detail: `Judul tidak mengandung: ${missing.join(", ")}`,
+            });
+            if (keywordMismatchSamples.length < 200) {
+              keywordMismatchSamples.push({
+                jobTitle: row.job_title,
+                company: row.company,
+                source: target.source,
+                jobUrl: row.job_url,
+                keyword: target.keyword,
+                missingKeywords: missing,
+              });
+            }
             continue;
           }
 
@@ -1164,12 +1252,18 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
           if (enrichedRow.already_applied || wasAlreadyApplied(enrichedRow, appliedIdentities)) {
             filteredOut += 1;
             rejectionBreakdown.alreadyApplied += 1;
+            pushRejection("alreadyApplied", enrichedRow, target, {
+              detail: enrichedRow.already_applied
+                ? "Halaman detail menandai lowongan ini sudah dilamar."
+                : "Sudah ada di daftar lamaran.",
+            });
             continue;
           }
 
           if (enrichedRow.is_closed) {
             filteredOut += 1;
             rejectionBreakdown.closedJob += 1;
+            pushRejection("closedJob", enrichedRow, target, { detail: "Lowongan sudah ditutup." });
             continue;
           }
 
@@ -1184,8 +1278,19 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
           if (!locationMatches) {
             filteredOut += 1;
             const hasLocationData = clean(`${enrichedRow.location || ""} ${enrichedRow.work_arrangement || ""}`);
-            if (hasLocationData) rejectionBreakdown.outsideTargetLocation += 1;
-            else rejectionBreakdown.missingLocation += 1;
+            if (hasLocationData) {
+              rejectionBreakdown.outsideTargetLocation += 1;
+              pushRejection("outsideTargetLocation", enrichedRow, target, {
+                detail: `Lokasi "${hasLocationData}" di luar target ${listFromText(
+                  effectiveRules.targetLocation || DEFAULT_RULES.targetLocation
+                ).join(", ")}.`,
+              });
+            } else {
+              rejectionBreakdown.missingLocation += 1;
+              pushRejection("missingLocation", enrichedRow, target, {
+                detail: "Lokasi dan tipe kerja tidak terbaca dari halaman lowongan.",
+              });
+            }
             continue;
           }
 
@@ -1200,6 +1305,10 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
         error: error.message,
       });
     }
+  }
+
+  if (targets.length > 0 && errors.length === targets.length) {
+    throw new Error(`Scraping gagal pada semua sumber. ${errors[0].source}: ${errors[0].error}`);
   }
 
   const limitedRows = rows.slice(0, limit);
@@ -1219,6 +1328,11 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
     matchedFilters: rows.length,
     filteredOut,
     rejectionBreakdown,
+    keywordMismatchSamples,
+    rejectionSamples,
+    keywordMissingTerms: Array.from(keywordMissingCounts.entries())
+      .map(([term, count]) => ({ term, count }))
+      .sort((a, b) => b.count - a.count),
     duplicatesRemoved,
     detailsAttempted,
     detailsEnriched,
@@ -1233,7 +1347,11 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
 
   const nextState = {
     ...persistedQueuedState,
-    activityLog: addLog(persistedQueuedState, "Website scraping completed through BrowserAct.", scrapeSummary),
+    activityLog: addLog(persistedQueuedState, "Website scraping completed through BrowserAct.", {
+      ...scrapeSummary,
+      keywordMismatchSamples: scrapeSummary.keywordMismatchSamples.length,
+      rejectionSamples: scrapeSummary.rejectionSamples.length,
+    }),
   };
 
   return {
@@ -1251,14 +1369,11 @@ export function queueEligibleJobsForAutoApply({ jobIds = [], all = false } = {})
   let considered = 0;
 
   const jobs = state.jobs.map((job) => {
-    const status = normalizeStatus(job.pipelineStatus);
     const inSelection = all || jobIds.includes(job.id);
-    const automaticallyArchived = status === "archived" && job.nextAction === "Skipped by auto apply filter";
 
     if (
       !inSelection ||
-      ["applied", "scheduled", "applying", "skipped", "needs input", "failed", "rejected", "interview", "offer"].includes(status) ||
-      (status === "archived" && !automaticallyArchived)
+      [PIPELINE_STATUS.READY, PIPELINE_STATUS.APPLIED].includes(normalizePipelineStatus(job.pipelineStatus))
     ) {
       return job;
     }
@@ -1268,8 +1383,9 @@ export function queueEligibleJobsForAutoApply({ jobIds = [], all = false } = {})
       skipped += 1;
       return {
         ...job,
-        pipelineStatus: "Archived",
-        nextAction: "Skipped by auto apply filter",
+        pipelineStatus: PIPELINE_STATUS.SAVED,
+        automationStatus: "idle",
+        nextAction: "Sudah pernah dilamar",
         filterReasons: ["already applied"],
         updatedAt: new Date().toISOString(),
       };
@@ -1280,8 +1396,9 @@ export function queueEligibleJobsForAutoApply({ jobIds = [], all = false } = {})
       skipped += 1;
       return {
         ...job,
-        pipelineStatus: "Archived",
-        nextAction: "Skipped by auto apply filter",
+        pipelineStatus: PIPELINE_STATUS.SAVED,
+        automationStatus: "idle",
+        nextAction: "Tidak lolos filter otomatis",
         filterReasons: decision.reasons,
         updatedAt: new Date().toISOString(),
       };
@@ -1290,8 +1407,9 @@ export function queueEligibleJobsForAutoApply({ jobIds = [], all = false } = {})
     queued += 1;
     return {
       ...job,
-      pipelineStatus: "Siap Apply",
-      nextAction: "Auto apply queue",
+      pipelineStatus: PIPELINE_STATUS.READY,
+      automationStatus: "queued",
+      nextAction: "Siap diproses oleh Lamar Otomatis",
       filterReasons: [],
       updatedAt: new Date().toISOString(),
     };
@@ -1316,10 +1434,21 @@ export function updateAutoApplyJob(jobId, patch = {}) {
       return job;
     }
 
+    const normalizedPatch = patch.pipelineStatus
+      ? { ...patch, pipelineStatus: normalizePipelineStatus(patch.pipelineStatus) }
+      : patch;
+    if (normalizedPatch.pipelineStatus && !normalizedPatch.automationStatus) {
+      normalizedPatch.automationStatus =
+        normalizedPatch.pipelineStatus === PIPELINE_STATUS.APPLIED
+          ? "submitted"
+          : normalizedPatch.pipelineStatus === PIPELINE_STATUS.READY
+            ? "queued"
+            : "idle";
+    }
     const nextPatch =
-      normalizeStatus(patch.pipelineStatus) === "applied" && !patch.appliedAt
-        ? { ...patch, appliedAt: job.appliedAt || now }
-        : patch;
+      normalizedPatch.pipelineStatus === PIPELINE_STATUS.APPLIED && !normalizedPatch.appliedAt
+        ? { ...normalizedPatch, appliedAt: job.appliedAt || now }
+        : normalizedPatch;
 
     return {
       ...job,
@@ -1556,13 +1685,14 @@ export function stopAutoApplyRun() {
   const sessionName = currentJob?.browserSessionName || (currentJob ? sessionNameFor(currentJob, run.id) : "");
   const sessionResult = closeBrowserActSession(sessionName);
   const jobs = state.jobs.map((job) => {
-    if (job.id !== run.currentJobId || normalizeStatus(job.pipelineStatus) !== "applying") {
+    if (job.id !== run.currentJobId || normalizePipelineStatus(job.pipelineStatus) !== PIPELINE_STATUS.READY) {
       return job;
     }
 
     return {
       ...job,
-      pipelineStatus: "Siap Apply",
+      pipelineStatus: PIPELINE_STATUS.READY,
+      automationStatus: "queued",
       nextAction: "Auto apply dihentikan user; bisa dijalankan ulang.",
       notes: clean(`${job.notes || ""} Auto apply stopped by user before completion.`),
       browserSessionName: "",
@@ -1615,7 +1745,12 @@ export function prepareAutoApplyRun({ jobIds = [], source = "All" } = {}) {
       return false;
     }
 
-    return matchesSelectedSource(job, source) && ["Siap Apply", "Ready", "Scheduled"].includes(job.pipelineStatus) && autoQueueDecision(job, state.rules).ok;
+    return (
+      matchesSelectedSource(job, source) &&
+      normalizePipelineStatus(job.pipelineStatus) === PIPELINE_STATUS.READY &&
+      automationStatusFromJob(job) === "queued" &&
+      autoQueueDecision(job, state.rules).ok
+    );
   });
 
   const blockedReasons = [];
@@ -1643,12 +1778,14 @@ export function appendAutoApplyLog(message, data = {}) {
 
 export const autoApplyFilterInternals = {
   appliedIdentitySet,
+  automationStatusFromJob,
   autoQueueDecision,
   buildScrapeTargets,
   canonicalJobUrl,
   matchesKeyword,
   matchesSelectedSource,
   matchesTargetLocation,
+  normalizePipelineStatus,
   parseJobDetailMarkdown,
   wasAlreadyApplied,
 };
