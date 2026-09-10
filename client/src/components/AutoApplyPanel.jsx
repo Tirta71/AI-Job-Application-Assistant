@@ -24,6 +24,7 @@ import {
   scrapeAutoApplyJobs,
   stopAutoApply,
   updateAutoApplyJob,
+  uploadAutoApplyCv,
 } from "../api/client.js";
 
 function JobSkills({ skills, compact }) {
@@ -57,6 +58,17 @@ function formatSalary(value) {
     .replace(/(\d[\d.,]*)\s+(?=(?:Rp\s*)?\d)/g, "$1 - ")
     .replace(/\bRp\s*(?=\d)/gi, "Rp ")
     .replace(/\s*\/\s*bulan/gi, " / bulan");
+}
+
+function formatJobDescription(value) {
+  return String(value || "")
+    .replace(/\s*={3,}\s*/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function fileNameFromPath(value) {
+  return String(value || "").split(/[\\/]/).at(-1) || "";
 }
 
 const jobStatusOptions = ["Disimpan", "Siap Dilamar", "Sudah Dilamar"];
@@ -263,13 +275,21 @@ function formatDateTime(value) {
 function JobSourceLogo({ job }) {
   const [imageFailed, setImageFailed] = useState(false);
   const logoUrl = job.companyLogoUrl || job.logoUrl || job.logo || "";
+  const companyInitials = String(job.company || job.source || "Perusahaan")
+    .replace(/\b(?:pt|cv|tbk)\.?\b/gi, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || sourceMark(job.source);
 
   return (
     <div className={`job-source-mark source-${sourceClass(job.source)}`} aria-label={`Logo ${job.company || job.source || "perusahaan"}`}>
       {logoUrl && !imageFailed ? (
         <img src={logoUrl} alt="" loading="lazy" onError={() => setImageFailed(true)} />
       ) : (
-        <span aria-hidden="true">{sourceMark(job.source)}</span>
+        <span aria-hidden="true">{companyInitials}</span>
       )}
     </div>
   );
@@ -704,12 +724,15 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   const [state, setState] = useState(emptyState);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingCv, setUploadingCv] = useState(false);
+  const [cvUploadStatus, setCvUploadStatus] = useState({ type: "", message: "" });
   const [scraping, setScraping] = useState(false);
   const [runningApply, setRunningApply] = useState(false);
   const [stoppingApply, setStoppingApply] = useState(false);
   const [status, setStatus] = useState({ type: "", message: "" });
   const [scrapeReport, setScrapeReport] = useState(null);
   const [scrapeReportOpen, setScrapeReportOpen] = useState(false);
+  const [scrapeProgressOpen, setScrapeProgressOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedJobIds, setSelectedJobIds] = useState([]);
   const [deletingJobs, setDeletingJobs] = useState(false);
@@ -721,6 +744,9 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   const [exploreLevel, setExploreLevel] = useState("Semua Level");
   const [exploreSort, setExploreSort] = useState("Terbaru");
   const [autoApplySection, setAutoApplySection] = useState("queue");
+  const cvInputRef = useRef(null);
+  const activeScrapeRunIdRef = useRef("");
+  const visibleScrapeRunIdRef = useRef("");
   const [tablePages, setTablePages] = useState({
     explore: 1,
     applications: 1,
@@ -729,6 +755,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
   const counts = useMemo(() => countByStatus(state.jobs || []), [state.jobs]);
   const autoApplyActive = ["starting", "running"].includes(normalizeStatus(state.automationRun?.status));
+  const scrapeActive = ["starting", "running"].includes(normalizeStatus(state.scrapeRun?.status));
   const applicationJobs = useMemo(() => sortNewestAppliedFirst((state.jobs || []).filter(isApplication)), [state.jobs]);
   const readyJobs = useMemo(() => (state.jobs || []).filter((job) => job.pipelineStatus === "Siap Dilamar"), [state.jobs]);
   const readyJobsForSelectedSource = useMemo(
@@ -825,14 +852,45 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
   useEffect(() => {
     const runStatus = normalizeStatus(state.automationRun?.status);
-    if (!["starting", "running"].includes(runStatus)) return undefined;
+    const scrapeStatus = normalizeStatus(state.scrapeRun?.status);
+    if (!["starting", "running"].includes(runStatus) && !["starting", "running"].includes(scrapeStatus)) return undefined;
 
     const interval = window.setInterval(() => {
       loadState({ silent: true });
     }, 1500);
 
     return () => window.clearInterval(interval);
-  }, [state.automationRun?.status]);
+  }, [state.automationRun?.status, state.scrapeRun?.status]);
+
+  useEffect(() => {
+    const run = state.scrapeRun;
+    if (!run?.id || activeScrapeRunIdRef.current !== run.id) return;
+    if (["starting", "running"].includes(normalizeStatus(run.status))) return;
+
+    activeScrapeRunIdRef.current = "";
+    setScrapeProgressOpen(false);
+    if (run.scrapeSummary) {
+      const scrape = run.scrapeSummary;
+      const imported = run.importSummary || { imported: 0, updated: 0 };
+      const queued = scrape.autoQueue || { queued: 0 };
+      setScrapeReport({ ...scrape, importSummary: imported });
+      setScrapeReportOpen(true);
+      setStatus({
+        type: normalizeStatus(run.status) === "completed" ? "success" : "warning",
+        message: `Scraping selesai: ${scrape.extracted} ditemukan, ${scrape.matchedFilters} lolos filter, ${imported.imported} baru, ${queued.queued} masuk queue.`,
+      });
+    } else {
+      setStatus({ type: "error", message: run.message || "Scraping gagal diselesaikan." });
+    }
+  }, [state.scrapeRun]);
+
+  useEffect(() => {
+    const run = state.scrapeRun;
+    if (!run?.id || !["starting", "running"].includes(normalizeStatus(run.status))) return;
+    if (visibleScrapeRunIdRef.current === run.id) return;
+    visibleScrapeRunIdRef.current = run.id;
+    setScrapeProgressOpen(true);
+  }, [state.scrapeRun?.id, state.scrapeRun?.status]);
 
   useEffect(() => {
     setTablePages({
@@ -858,6 +916,43 @@ export default function AutoApplyPanel({ view = "jobs" }) {
       ...current,
       rules: { ...current.rules, [name]: type === "checkbox" ? checked : value },
     }));
+  }
+
+  async function handleCvUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setCvUploadStatus({ type: "error", message: "Gunakan file CV berformat PDF." });
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setCvUploadStatus({ type: "error", message: "Ukuran CV maksimal 10 MB." });
+      event.target.value = "";
+      return;
+    }
+
+    try {
+      setUploadingCv(true);
+      setCvUploadStatus({ type: "", message: "" });
+      const response = await uploadAutoApplyCv(file);
+      setState((current) => ({
+        ...current,
+        answerBank: {
+          ...current.answerBank,
+          cvPath: response.data.answerBank?.cvPath || "",
+          cvFileName: response.data.answerBank?.cvFileName || file.name,
+        },
+      }));
+      setCvUploadStatus({ type: "success", message: "CV tersimpan dan siap digunakan untuk auto apply." });
+    } catch (error) {
+      setCvUploadStatus({ type: "error", message: error.message });
+    } finally {
+      setUploadingCv(false);
+      event.target.value = "";
+    }
   }
 
   async function handleSaveSettings() {
@@ -915,19 +1010,16 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   async function handleScrapeWebsites() {
     try {
       setScraping(true);
-      setStatus({ type: "warning", message: "Scraping Glints/JobStreet sedang berjalan lewat BrowserAct..." });
       const response = await scrapeAutoApplyJobs();
       setState(response.data);
-      const scrape = response.data.scrapeSummary;
-      const imported = response.data.importSummary;
-      const queued = scrape.autoQueue || { queued: 0, skipped: 0 };
-      const scrapeErrors = scrape.errors || [];
-      setScrapeReport({ ...scrape, importSummary: imported });
-      setScrapeReportOpen(true);
-      setStatus({
-        type: scrape.matchedFilters && !scrapeErrors.length ? "success" : "warning",
-        message: `Scraping selesai: ${scrape.extracted} ditemukan, ${scrape.matchedFilters} lolos filter, ${imported.imported} baru, ${queued.queued} masuk queue.`,
-      });
+      const started = response.data.scrapeStartSummary;
+      if (!started?.started) {
+        setStatus({ type: "warning", message: started?.reason || "Scraping belum dapat dimulai." });
+        return;
+      }
+      activeScrapeRunIdRef.current = started.runId;
+      setScrapeProgressOpen(true);
+      setStatus({ type: "warning", message: "Scraping berjalan di latar belakang. Halaman tetap dapat digunakan." });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
     } finally {
@@ -1269,8 +1361,8 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   function renderScrapeToolbar() {
     return (
       <div className="auto-toolbar">
-        <button className="primary-button" type="button" onClick={handleScrapeWebsites} disabled={loading || scraping}>
-          {scraping ? "Mencari lowongan..." : "Cari lowongan baru"}
+        <button className="primary-button" type="button" onClick={handleScrapeWebsites} disabled={loading || scraping || scrapeActive}>
+          {scraping || scrapeActive ? "Mencari lowongan..." : "Cari lowongan baru"}
         </button>
         <button className="secondary-button" type="button" onClick={handleQueueAllEligibleJobs} disabled={loading || !state.jobs?.length}>
           Siapkan yang lolos filter
@@ -1278,6 +1370,55 @@ export default function AutoApplyPanel({ view = "jobs" }) {
         <button className="secondary-button" type="button" onClick={loadState} disabled={loading}>
           Refresh
         </button>
+      </div>
+    );
+  }
+
+  function renderScrapeProgressModal() {
+    const run = state.scrapeRun;
+    if (!scrapeProgressOpen || !run || !["starting", "running"].includes(normalizeStatus(run.status))) return null;
+    const attempted = Number(run.attemptedTargets || 0);
+    const total = Number(run.totalTargets || 0);
+    const percent = total ? Math.min(96, Math.round((attempted / total) * 100)) : 4;
+
+    return (
+      <div className="modal-backdrop" role="presentation" onClick={() => setScrapeProgressOpen(false)}>
+        <div className="modal-card scrape-progress-modal" role="dialog" aria-modal="true" aria-labelledby="scrape-progress-title" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-head">
+            <span className="modal-head-icon" aria-hidden="true"><span className="scrape-live-dot" /></span>
+            <div className="modal-head-text">
+              <h3 id="scrape-progress-title">Proses Scraping</h3>
+              <p className="section-subtitle">BrowserAct sedang mencari lowongan dari sumber yang dipilih.</p>
+            </div>
+            <button type="button" className="modal-close" aria-label="Tutup" onClick={() => setScrapeProgressOpen(false)}>×</button>
+          </div>
+          <div className="modal-body">
+            <div className="scrape-progress" role="status" aria-live="polite">
+              <div className="scrape-progress-heading">
+                <div>
+                  <span className="scrape-live-dot" aria-hidden="true" />
+                  <strong>Scraping sedang berjalan</strong>
+                  <small>{attempted}/{total || "…"} pencarian</small>
+                </div>
+                <b>{percent}%</b>
+              </div>
+              <div className="scrape-progress-track" aria-label={`Progress scraping ${percent}%`}>
+                <span style={{ width: `${percent}%` }} />
+              </div>
+              <p>{run.message || "Menyiapkan BrowserAct..."}</p>
+              <div className="scrape-progress-stats">
+                <span><strong>{run.extracted || 0}</strong> ditemukan</span>
+                <span><strong>{run.matchedFilters || 0}</strong> lolos filter</span>
+                <span><strong>{run.filteredOut || 0}</strong> tidak cocok</span>
+                <span><strong>{run.errorsCount || 0}</strong> kendala</span>
+              </div>
+            </div>
+          </div>
+          <div className="modal-foot">
+            <p className="modal-foot-hint">Modal boleh ditutup. Scraping tetap berjalan di latar belakang.</p>
+            <button type="button" className="secondary-button" onClick={() => setScrapeProgressOpen(false)}>Jalankan di latar belakang</button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1365,7 +1506,9 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
             if (mode === "explore") {
               const jobLevel = job.experienceLevel || job.seniorityLevel || "Level belum tersedia";
-              const jobDescription = String(job.jobDescription || job.notes || "Tinjau detail lowongan dan persyaratan lengkap pada halaman perusahaan.").trim();
+              const jobDescription = formatJobDescription(
+                job.jobDescription || job.notes || "Tinjau detail lowongan dan persyaratan lengkap pada halaman perusahaan."
+              );
               const exploreStatus = normalizedJobStatus === "siap dilamar" ? "Siap Dilamar" : normalizedJobStatus === "sudah dilamar" ? "Sudah Dilamar" : "Baru";
               const exploreStatusTone = normalizedJobStatus === "siap dilamar" ? "is-ready" : normalizedJobStatus === "sudah dilamar" ? "is-applied" : "is-new";
 
@@ -1456,9 +1599,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 </label>
               )}
               <header className="job-card-header">
-                <div className={`job-source-mark source-${sourceClass(job.source)}`} aria-hidden="true">
-                  {sourceMark(job.source)}
-                </div>
+                <JobSourceLogo job={job} />
                 <div className="job-heading">
                   <div className="job-card-eyebrow">
                     <span>{job.source || "Manual"}</span>
@@ -1611,8 +1752,8 @@ export default function AutoApplyPanel({ view = "jobs" }) {
               <h1 id="explorer-title">Lowongan</h1>
               <p>Temukan dan siapkan peluang yang cocok untuk Anda.</p>
             </div>
-            <button className="primary-button" type="button" onClick={handleScrapeWebsites} disabled={loading || scraping}>
-              {scraping ? "Mencari lowongan..." : "+ Cari lowongan baru"}
+            <button className="primary-button" type="button" onClick={handleScrapeWebsites} disabled={loading || scraping || scrapeActive}>
+              {scraping || scrapeActive ? "Mencari lowongan..." : "+ Cari lowongan baru"}
             </button>
           </div>
           {renderSummary("explore")}
@@ -1838,11 +1979,23 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                 </div>
               </div>
               <div className="form-grid two-columns">
-                <label className="field answer-bank-full-field">
-                  <span>Lokasi File CV</span>
-                  <input name="cvPath" value={state.answerBank?.cvPath || ""} onChange={updateAnswerBankField} />
-                  <small>File ini digunakan saat portal meminta upload CV baru.</small>
-                </label>
+                <div className="field answer-bank-full-field">
+                  <span>File CV</span>
+                  <input ref={cvInputRef} type="file" accept="application/pdf,.pdf" onChange={handleCvUpload} hidden />
+                  <div className="answer-cv-picker">
+                    <div className="answer-cv-file">
+                      <FileText aria-hidden="true" />
+                      <div>
+                        <strong>{state.answerBank?.cvFileName || fileNameFromPath(state.answerBank?.cvPath) || "Belum ada CV"}</strong>
+                        <small>{state.answerBank?.cvPath ? "PDF siap digunakan" : "Pilih CV sebelum menjalankan auto apply"}</small>
+                      </div>
+                    </div>
+                    <button className="secondary-button" type="button" onClick={() => cvInputRef.current?.click()} disabled={uploadingCv}>
+                      {uploadingCv ? "Mengunggah..." : state.answerBank?.cvPath ? "Ganti CV" : "Pilih File CV"}
+                    </button>
+                  </div>
+                  {cvUploadStatus.message && <p className={`cv-upload-status ${cvUploadStatus.type}`}>{cvUploadStatus.message}</p>}
+                </div>
                 <label className="field">
                   <span>Email Lamaran</span>
                   <input name="emailAddress" type="email" value={state.answerBank?.emailAddress || ""} onChange={updateAnswerBankField} />
@@ -2152,6 +2305,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   return (
     <>
       {content}
+      {renderScrapeProgressModal()}
       {scrapeReportOpen && scrapeReport && (
         <ScrapeReportModal report={scrapeReport} onClose={() => setScrapeReportOpen(false)} />
       )}

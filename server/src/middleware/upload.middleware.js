@@ -1,6 +1,6 @@
 import multer from "multer";
 import path from "path";
-import { TEMPLATE_DIR, sanitizeFileName, timestampForFile } from "../utils/file.util.js";
+import { CV_DIR, TEMPLATE_DIR, sanitizeFileName, timestampForFile } from "../utils/file.util.js";
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -31,5 +31,34 @@ export const uploadTemplate = multer({
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024
+  }
+});
+
+const cvStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, CV_DIR);
+  },
+  filename: (_req, _file, cb) => {
+    cb(null, "applymate_cv.pdf");
+  }
+});
+
+function cvFileFilter(_req, file, cb) {
+  const isPdfExtension = path.extname(file.originalname).toLowerCase() === ".pdf";
+  const isPdfMime = file.mimetype === "application/pdf" || file.mimetype === "application/octet-stream";
+
+  if (!isPdfExtension || !isPdfMime) {
+    cb(new Error("Only .pdf files are allowed."));
+    return;
+  }
+
+  cb(null, true);
+}
+
+export const uploadCv = multer({
+  storage: cvStorage,
+  fileFilter: cvFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024
   }
 });

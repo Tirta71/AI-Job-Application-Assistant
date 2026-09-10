@@ -1,4 +1,5 @@
 import { spawnSync } from "child_process";
+import fs from "fs";
 import { pathToFileURL } from "url";
 import {
   appendAutoApplyLog,
@@ -390,18 +391,35 @@ function fillApplicationFields(sessionName, answerBank, job) {
       if (!el.id) return null;
       try { return rootFor(el).querySelector('label[for="' + CSS.escape(el.id) + '"]'); } catch { return null; }
     };
+    const referencedText = (el, attribute) => normalize(
+      String(el.getAttribute(attribute) || '')
+        .split(/\\s+/)
+        .map((id) => {
+          try { return rootFor(el).getElementById?.(id)?.innerText || rootFor(el).querySelector?.('#' + CSS.escape(id))?.textContent || ''; } catch { return ''; }
+        })
+        .join(' ')
+    );
+    const genericFieldHint = (value) => /^(?:(?:type|enter|write|input|masukkan|ketik|isi)\\s+)?(?:your\\s+)?(?:answer|response|jawaban)(?:\\s+(?:here|di sini))?[\\s*.:_-]*$/i.test(normalize(value));
+    const questionSignal = /\\?|experience|pengalaman|salary|gaji|upah|kompensasi|compensation|remuneration|pay|ekspektasi|penghasilan|pendapatan|proficiency|kemahiran|notice|education|degree|qualification/i;
+    const questionGroupCount = (node) => new Set(
+      Array.from(node?.querySelectorAll?.('input:not([type="hidden"]),textarea,select') || [])
+        .map((field) => field.type === 'radio' ? 'radio:' + (field.name || field.id) : field)
+    ).size;
     const optionText = (el) => normalize(
       el.closest('label')?.innerText || labelFor(el)?.innerText || el.parentElement?.innerText || el.value || el.getAttribute('aria-label') || ''
     );
     const questionText = (el) => {
+      const placeholder = normalize(el.getAttribute('placeholder'));
       const directLabel = normalize([
         labelFor(el)?.innerText,
         el.closest('label')?.innerText,
+        referencedText(el, 'aria-labelledby'),
+        referencedText(el, 'aria-describedby'),
         el.getAttribute('aria-label'),
-        el.getAttribute('placeholder'),
+        genericFieldHint(placeholder) ? '' : placeholder,
       ].filter(Boolean).join(' '));
       const isShortOption = el.type === 'radio' || /^(yes|no|ya|tidak|none|basic|intermediate|advanced)$/i.test(directLabel);
-      if (directLabel && !isShortOption) return directLabel;
+      if (directLabel && !isShortOption && !genericFieldHint(directLabel)) return directLabel;
       if (el.type === 'radio') {
         let sibling = el.closest('label')?.previousSibling;
         for (let index = 0; sibling && index < 10; index += 1, sibling = sibling.previousSibling) {
@@ -409,16 +427,27 @@ function fillApplicationFields(sessionName, answerBank, job) {
           if (text && !/^(yes|no|ya|tidak|none|tidak berpengalaman|dasar|menengah|ahli|<1 thn|\\d+.*thn)$/i.test(text)) return text;
         }
       }
+      let anchor = el;
+      for (let depth = 0; anchor && depth < 5; depth += 1, anchor = anchor.parentElement) {
+        let sibling = anchor.previousElementSibling;
+        for (let index = 0; sibling && index < 8; index += 1, sibling = sibling.previousElementSibling) {
+          const text = normalize(sibling.innerText || sibling.textContent || '');
+          if (questionGroupCount(sibling) === 0 && text.length >= 4 && text.length <= 500 && questionSignal.test(text)) return text;
+        }
+      }
       let best = '';
       let node = el.type === 'radio' ? el.closest('label')?.parentElement || el.parentElement : el.parentElement;
-      for (let depth = 0; node && depth < 7; depth += 1) {
+      let currencyContext = '';
+      for (let depth = 0; node && depth < 12; depth += 1) {
         const text = normalize(node.innerText || node.textContent || '');
-        if (text.length >= 4 && text.length <= 700 && /\\?|experience|pengalaman|salary|gaji|proficiency|kemahiran|notice|education|degree|qualification/i.test(text)) {
+        const ownsSingleQuestion = questionGroupCount(node) <= 1;
+        if (ownsSingleQuestion && !currencyContext && text.length <= 350 && /(?:^|\\s)(?:rp\\.?|idr|usd|\\$)(?:\\s|$)/i.test(text)) currencyContext = 'expected salary ' + text;
+        if (ownsSingleQuestion && text.length >= 4 && text.length <= 1400 && questionSignal.test(text)) {
           if (!best || text.length < best.length) best = text;
         }
         node = node.parentElement || node.getRootNode?.()?.host?.parentElement;
       }
-      return best || directLabel || normalize(el.getAttribute('name'));
+      return best || currencyContext || directLabel || normalize([el.getAttribute('name'), el.id].filter(Boolean).join(' '));
     };
     const setValue = (el, value) => {
       if (value === undefined || value === null || value === '' || !visible(el)) return false;
@@ -510,6 +539,8 @@ function fillApplicationFields(sessionName, answerBank, job) {
     for (const input of deepQueryAll('input').filter((el) => visible(el) && ['text','number','tel','search','email',''].includes((el.type || '').toLowerCase()))) {
       const context = questionText(input);
       const answerKey = classifyApplicationQuestion(context);
+      const fallbackHasQuestion = /\\?|\\s/.test(context) && !genericFieldHint(context);
+      if (answerKey === 'fallbackScreeningAnswer' && (!fallbackHasQuestion || input.type === 'number')) continue;
       const expectsYears = /Experience$/.test(answerKey) && /year|tahun|berapa lama/.test(context);
       let value = answerForApplicationQuestion(context, answers, input.type === 'number' || expectsYears ? 'number' : 'text');
       if (answerKey === 'expectedSalary') value = String(value).replace(/\\D/g, '');
@@ -562,18 +593,35 @@ function discoverApplicationQuestions(sessionName) {
     const activeDialogs = allDeep('[role="dialog"],[aria-modal="true"],[class*="ModalContainer"],[class*="ApplicationModalContainer"]').filter(visible);
     const fields = allDeep('input,textarea,select,[role="radio"],[role="checkbox"]')
       .filter((element) => !activeDialogs.length || activeDialogs.some((dialog) => dialog.contains(element)));
+    const genericFieldHint = (value) => /^(?:(?:type|enter|write|input|masukkan|ketik|isi)\\s+)?(?:your\\s+)?(?:answer|response|jawaban)(?:\\s+(?:here|di sini))?[\\s*.:_-]*$/i.test(normalize(value));
+    const questionSignal = /\\?|experience|pengalaman|salary|gaji|upah|kompensasi|compensation|remuneration|pay|ekspektasi|penghasilan|pendapatan|proficiency|kemahiran|notice|education|degree|qualification/i;
+    const questionGroupCount = (node) => new Set(
+      Array.from(node?.querySelectorAll?.('input:not([type="hidden"]),textarea,select') || [])
+        .map((field) => field.type === 'radio' ? 'radio:' + (field.name || field.id) : field)
+    ).size;
     const questionFor = (el) => {
       const root = el.getRootNode?.() || document;
       let linkedLabel = null;
       try { linkedLabel = el.id ? root.querySelector('label[for="' + CSS.escape(el.id) + '"]') : null; } catch {}
+      const referencedText = (attribute) => normalize(
+        String(el.getAttribute(attribute) || '')
+          .split(/\\s+/)
+          .map((id) => {
+            try { return root.getElementById?.(id)?.innerText || root.querySelector?.('#' + CSS.escape(id))?.textContent || ''; } catch { return ''; }
+          })
+          .join(' ')
+      );
+      const placeholder = normalize(el.getAttribute('placeholder'));
       const directLabel = normalize([
         linkedLabel?.innerText,
         el.closest('label')?.innerText,
+        referencedText('aria-labelledby'),
+        referencedText('aria-describedby'),
         el.getAttribute('aria-label'),
-        el.getAttribute('placeholder'),
+        genericFieldHint(placeholder) ? '' : placeholder,
       ].filter(Boolean).join(' '));
       const isShortOption = el.type === 'radio' || /^(yes|no|ya|tidak|none|basic|intermediate|advanced)$/i.test(directLabel);
-      if (directLabel && !isShortOption) return directLabel.slice(0, 500);
+      if (directLabel && !isShortOption && !genericFieldHint(directLabel)) return directLabel.slice(0, 500);
       if (el.type === 'radio') {
         let sibling = el.closest('label')?.previousSibling;
         for (let index = 0; sibling && index < 10; index += 1, sibling = sibling.previousSibling) {
@@ -581,16 +629,27 @@ function discoverApplicationQuestions(sessionName) {
           if (text && !/^(yes|no|ya|tidak|none|tidak berpengalaman|dasar|menengah|ahli|<1 thn|\\d+.*thn)$/i.test(text)) return text.slice(0, 500);
         }
       }
+      let anchor = el;
+      for (let depth = 0; anchor && depth < 5; depth += 1, anchor = anchor.parentElement) {
+        let sibling = anchor.previousElementSibling;
+        for (let index = 0; sibling && index < 8; index += 1, sibling = sibling.previousElementSibling) {
+          const text = normalize(sibling.innerText || sibling.textContent || '');
+          if (questionGroupCount(sibling) === 0 && text.length >= 4 && text.length <= 500 && questionSignal.test(text)) return text.slice(0, 500);
+        }
+      }
       let best = '';
       let node = el.type === 'radio' ? el.closest('label')?.parentElement || el.parentElement : el.parentElement;
-      for (let depth = 0; node && depth < 7; depth += 1) {
+      let currencyContext = '';
+      for (let depth = 0; node && depth < 12; depth += 1) {
         const text = normalize(node.innerText || node.textContent || '');
-        if (text.length >= 4 && text.length <= 600 && /\\?|experience|pengalaman|salary|gaji|proficiency|notice|education|degree|qualification/i.test(text)) {
+        const ownsSingleQuestion = questionGroupCount(node) <= 1;
+        if (ownsSingleQuestion && !currencyContext && text.length <= 350 && /(?:^|\\s)(?:rp\\.?|idr|usd|\\$)(?:\\s|$)/i.test(text)) currencyContext = 'expected salary ' + text;
+        if (ownsSingleQuestion && text.length >= 4 && text.length <= 1400 && questionSignal.test(text)) {
           if (!best || text.length < best.length) best = text;
         }
         node = node.parentElement || node.getRootNode?.()?.host?.parentElement;
       }
-      return (best || directLabel || normalize(el.getAttribute('name'))).slice(0, 500);
+      return (best || currencyContext || directLabel || normalize([el.getAttribute('name'), el.id].filter(Boolean).join(' '))).slice(0, 500);
     };
     const seen = new Set();
     const questions = [];
@@ -636,6 +695,8 @@ function discoverAndRecordQuestions(sessionName, job) {
 
 function uploadCvIfPresent(sessionName, cvPath, currentMarkdown = "") {
   if (!cvPath) return { uploaded: false, reason: "CV path empty" };
+  if (!fs.existsSync(cvPath)) return { uploaded: false, reason: `CV file not found: ${cvPath}` };
+  if (!fs.statSync(cvPath).isFile()) return { uploaded: false, reason: `CV path is not a file: ${cvPath}` };
 
   const fileName = String(cvPath).split(/[\\/]/).at(-1) || "";
   const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -2020,7 +2081,7 @@ function main() {
     return;
   }
 
-  const browserId = clean(state.rules?.browserActBrowserId) || "direct_local_105855706457964564";
+  const browserId = clean(state.rules?.browserActBrowserId) || "chrome_local_117425860971069553";
   let processed = 0;
   let applied = 0;
   let skipped = 0;

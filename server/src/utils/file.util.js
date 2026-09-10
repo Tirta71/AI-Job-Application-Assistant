@@ -6,9 +6,10 @@ export const STORAGE_DIR = path.join(SERVER_ROOT, "storage");
 export const TEMPLATE_DIR = path.join(STORAGE_DIR, "templates");
 export const GENERATED_DIR = path.join(STORAGE_DIR, "generated");
 export const TRACKER_DIR = path.join(STORAGE_DIR, "tracker");
+export const CV_DIR = path.join(STORAGE_DIR, "cv");
 
 export function ensureStorageDirs() {
-  [TEMPLATE_DIR, GENERATED_DIR, TRACKER_DIR].forEach((dir) => {
+  [TEMPLATE_DIR, GENERATED_DIR, TRACKER_DIR, CV_DIR].forEach((dir) => {
     fs.mkdirSync(dir, { recursive: true });
   });
 }

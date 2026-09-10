@@ -77,7 +77,9 @@ app.get("/api/download/:filename", (req, res, next) => {
 
 app.use((error, _req, res, _next) => {
   if (error instanceof multer.MulterError) {
-    const message = error.code === "LIMIT_FILE_SIZE" ? "Template must be 5MB or smaller." : error.message;
+    const message = error.code === "LIMIT_FILE_SIZE"
+      ? error.field === "cv" ? "CV must be 10MB or smaller." : "Template must be 5MB or smaller."
+      : error.message;
     return errorResponse(res, "Upload failed.", message, 400);
   }
 

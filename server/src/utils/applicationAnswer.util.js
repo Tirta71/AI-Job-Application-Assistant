@@ -19,10 +19,12 @@ export function classifyApplicationQuestion(value) {
   if (/phone|mobile|whatsapp|nomor (?:hp|telepon)|no\.?(?: hp| telepon)/.test(text)) return "phoneNumber";
   if (/tinggal di|berdomisili di|live in|reside in|currently based in/.test(text)) return "livesInJobLocation";
   if (/current location|domicile|domisili|city|kota tempat tinggal|lokasi saat ini/.test(text)) return "currentLocation";
-  if (/salary|gaji|upah|kompensasi|expected pay|ekspektasi/.test(text)) return "expectedSalary";
-  if (/notice period|available to start|availability|kapan.*mulai|mulai bekerja|bergabung/.test(text)) return "noticePeriod";
+  if (/salary|gaji|upah|kompensasi|compensation|remuneration|expected pay|desired pay|pay expectation|monthly pay|ekspektasi|penghasilan|pendapatan/.test(text)) {
+    return "expectedSalary";
+  }
+  if (/notice period|\bnotice\b|available to start|availability|kapan.*mulai|mulai bekerja|bergabung/.test(text)) return "noticePeriod";
   if (/qualification|kualifikasi|education|degree|gelar|pendidikan|sarjana|bachelor/.test(text)) return "educationLevel";
-  if (/english|bahasa inggris/.test(text)) return "englishProficiency";
+  if (/english|bahasa inggris|\binggris\b/.test(text)) return "englishProficiency";
   if (/currently employed|current employment|sedang bekerja|status pekerjaan/.test(text)) return "currentEmploymentStatus";
   if (/eligible|eligibility|legally.*work|work authorization|hak bekerja|izin bekerja/.test(text)) return "workEligibility";
   if (/onsite|on-site|work from office|wfo|hybrid|relocat|penempatan/.test(text)) return "onsiteAvailability";
@@ -60,6 +62,7 @@ export function experienceToNumber(value) {
 export function answerForApplicationQuestion(question, answerBank = {}, fieldType = "text") {
   const key = classifyApplicationQuestion(question);
   const fallback = answerBank.fallbackScreeningAnswer || "No";
+  if (fieldType === "number" && key === "fallbackScreeningAnswer") return "";
   const value = answerBank[key] ?? fallback;
   if (fieldType === "number" && /Experience$/.test(key)) return experienceToNumber(value);
   return String(value ?? fallback);

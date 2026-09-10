@@ -8,9 +8,11 @@ import { classifyApplicationQuestion } from "../utils/applicationAnswer.util.js"
 const SERVICE_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_ROOT = path.resolve(SERVICE_DIR, "../..");
 const WORKER_PATH = path.join(SERVER_ROOT, "src", "workers", "browserAct.worker.js");
+const SCRAPE_WORKER_PATH = path.join(SERVER_ROOT, "src", "workers", "browserAct.scrape.worker.js");
 const AUTO_APPLY_DIR = path.join(STORAGE_DIR, "auto-apply");
 const STATE_PATH = path.join(AUTO_APPLY_DIR, "state.json");
 const WORKER_LOG_PATH = path.join(AUTO_APPLY_DIR, "worker.log");
+const SCRAPE_WORKER_LOG_PATH = path.join(AUTO_APPLY_DIR, "scrape-worker.log");
 export const AUTO_APPLY_STATE_PATH = STATE_PATH;
 const BROWSER_ACT_BIN = process.platform === "win32" ? "browser-act.exe" : "browser-act";
 
@@ -38,7 +40,7 @@ const AUDITED_QUESTIONS = [
 }));
 
 const DEFAULT_ANSWER_BANK = {
-  cvPath: "C:\\Users\\Tirta\\Downloads\\Tirta.pdf",
+  cvPath: "/Users/tirtasamara/Documents/CV/Tirta.pdf",
   expectedSalary: "4.500.000",
   availability: "immediate",
   frontendExperience: "1-3 years",
@@ -86,7 +88,7 @@ const DEFAULT_RULES = {
   keywords: "Fullstack Web Developer, Frontend React, Laravel Developer, PHP Developer, Junior Web Developer",
   scrapingFrequency: "Manual",
   targetLocation: "Jabodetabek, Hybrid, Remote Indonesia",
-  browserActBrowserId: "direct_local_105855706457964564",
+  browserActBrowserId: "chrome_local_117425860971069553",
   scrapeLimitPerRun: "40",
   autoApplyLimitPerRun: "5",
   autoRemoteAssist: false,
@@ -107,6 +109,7 @@ const DEFAULT_STATE = {
   rules: DEFAULT_RULES,
   activityLog: [],
   automationRun: null,
+  scrapeRun: null,
   updatedAt: null,
 };
 const STALE_APPLYING_MS = 10 * 60 * 1000;
@@ -178,6 +181,12 @@ function readStateFile() {
       jobs: Array.isArray(parsed.jobs)
         ? parsed.jobs.map((job) => ({
             ...job,
+            jobTitle: cleanJobLinkTitle(job.jobTitle),
+            location: /linkedin/i.test(job.source || "") ? cleanLinkedInLocation(job.location) : job.location,
+            salaryRaw: cleanSalaryRaw(job.salaryRaw),
+            jobDescription: /linkedin/i.test(job.source || "")
+              ? cleanLinkedInDescription(job.jobDescription)
+              : job.jobDescription,
             pipelineStatus: normalizePipelineStatus(job.pipelineStatus),
             automationStatus: automationStatusFromJob(job),
             responseStatus: responseStatusFromLegacyJob(job),
@@ -187,6 +196,7 @@ function readStateFile() {
         : [],
       activityLog: Array.isArray(parsed.activityLog) ? parsed.activityLog : [],
       automationRun: parsed.automationRun || null,
+      scrapeRun: parsed.scrapeRun || null,
     };
   } catch {
     return { ...DEFAULT_STATE, updatedAt: new Date().toISOString() };
@@ -553,8 +563,50 @@ function cleanMarkdownText(value) {
     value
       .replace(/!\[[^\]]*]\([^)]*\)/g, "")
       .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
+      .replace(/={3,}/g, " ")
       .replace(/[#*_`>|-]/g, " ")
   );
+}
+
+function normalizeMarkdownLinks(value) {
+  return String(value || "").replace(
+    /\[([\s\S]{1,300}?)]\((https?:\/\/[^)\s]+)\)/g,
+    (_match, label, url) => "[" + String(label).replace(/\s+/g, " ").trim() + "](" + url + ")"
+  );
+}
+
+function cleanJobLinkTitle(value) {
+  const title = cleanMarkdownText(value).replace(/\s+with verification$/i, "").trim();
+  return title.match(/^(.{3,100}?)\s+\1$/i)?.[1] || title;
+}
+
+function cleanSalaryRaw(value) {
+  const salary = clean(value);
+  if (salary.length > 180 || /https?:\/\/|linkedin\.com\/jobs\/view\/|\]\(/i.test(salary)) return "";
+  return salary;
+}
+
+function cleanLinkedInLocation(value) {
+  return clean(value)
+    .replace(/^\+\s*/, "")
+    .split(/\s*[·|]\s*/)[0]
+    .trim();
+}
+
+function cleanLinkedInDescription(value) {
+  let description = clean(value);
+  const aboutMatch = description.match(/\babout the job\b\s*/i);
+  if (aboutMatch) {
+    description = description.slice((aboutMatch.index || 0) + aboutMatch[0].length);
+  } else if (/skip to search|skip to main content|\d+\s*notifications?/i.test(description)) {
+    return "";
+  }
+
+  const endMatch = description.match(
+    /\s(?:set alert for similar jobs|unlock hiring insights|about the company|company photos|show more more jobs|see more jobs like this)\b/i
+  );
+  if (endMatch) description = description.slice(0, endMatch.index);
+  return clean(description).slice(0, 8000);
 }
 
 function inferLine(lines, startIndex, matcher) {
@@ -608,13 +660,13 @@ function findCompanyLogoUrl(markdown, { company = "", title = "" } = {}) {
 function parseJobsFromMarkdown(markdown, target) {
   const rows = [];
   const seenUrls = new Set();
-  const lines = String(markdown || "").split(/\r?\n/);
+  const lines = normalizeMarkdownLinks(markdown).split(/\r?\n/);
   const linkRegex = /\[([^\]]{3,140})]\((https?:\/\/[^)\s]+)\)/g;
 
   lines.forEach((line, index) => {
     let match = linkRegex.exec(line);
     while (match) {
-      const title = cleanMarkdownText(match[1]);
+      const title = cleanJobLinkTitle(match[1]);
       const jobUrl = canonicalJobUrl(match[2]);
       const sameSource =
         target.source === "Glints"
@@ -722,9 +774,11 @@ function parseJobDetailMarkdown(markdown, row = {}) {
     location = links.find((link) => /-jobs\/in-/i.test(link.url))?.text || "";
   } else if (/linkedin/i.test(source)) {
     company = links.find((link) => /linkedin\.com\/company\//i.test(link.url))?.text || "";
-    location = metadataLines.find((line) =>
-      /jakarta|bogor|depok|tangerang|bekasi|bandung|surabaya|semarang|yogyakarta|malang|bali|indonesia|remote|hybrid/i.test(line)
-    ) || "";
+    location = cleanLinkedInLocation(
+      metadataLines.find((line) =>
+        /jakarta|bogor|depok|tangerang|bekasi|bandung|surabaya|semarang|yogyakarta|malang|bali|indonesia|remote|hybrid/i.test(line)
+      ) || ""
+    );
   }
 
   if (!company) {
@@ -750,8 +804,14 @@ function parseJobDetailMarkdown(markdown, row = {}) {
       ) || "";
   }
 
-  const salaryRaw =
-    metadataLines.find((line) => /(?:rp|idr|\$)\s*[\d.,]+|[\d.,]+\s*(?:juta|jt)|per month|per bulan/i.test(line)) || "";
+  const salaryRaw = cleanSalaryRaw(
+    metadataLines.find(
+      (line) =>
+        line.length <= 180 &&
+        !/https?:\/\/|linkedin\.com\/jobs\/view\/|\]\(/i.test(line) &&
+        /(?:rp|idr|\$)\s*[\d.,]+|[\d.,]+\s*(?:juta|jt)|per month|per bulan/i.test(line)
+    ) || ""
+  );
   const workArrangement = /\b(remote|work from home|dari rumah|wfh)\b/i.test(metadataText)
     ? "Remote"
     : /\bhybrid\b/i.test(metadataText)
@@ -768,13 +828,23 @@ function parseJobDetailMarkdown(markdown, row = {}) {
         : /\b(part.?time|paruh waktu)\b/i.test(metadataText)
           ? "Part-time"
           : "";
+  const linkedInAboutIndex = /linkedin/i.test(source)
+    ? cleanedLines.findIndex((line) => /^about the job$/i.test(line))
+    : -1;
+  const descriptionStart = linkedInAboutIndex >= 0 ? linkedInAboutIndex + 1 : Math.max(0, titleIndex);
   const descriptionEnd = cleanedLines.findIndex((line, index) => {
-    return index > Math.max(0, titleIndex) && /^(employer questions|company profile|featured jobs|tentang perusahaan)$/i.test(line);
+    if (index <= descriptionStart) return false;
+    return /linkedin/i.test(source)
+      ? /^(set alert for similar jobs|unlock hiring insights|about the company|company photos|show more|more jobs|see more jobs like this)$/i.test(line)
+      : /^(employer questions|company profile|featured jobs|tentang perusahaan)$/i.test(line);
   });
   const descriptionLines = cleanedLines.slice(
-    Math.max(0, titleIndex),
-    descriptionEnd > 0 ? descriptionEnd : Math.min(cleanedLines.length, Math.max(0, titleIndex) + 220)
+    descriptionStart,
+    descriptionEnd > descriptionStart ? descriptionEnd : Math.min(cleanedLines.length, descriptionStart + 220)
   );
+  const jobDescription = /linkedin/i.test(source)
+    ? cleanLinkedInDescription(descriptionLines.join(" "))
+    : clean(descriptionLines.join(" ")).slice(0, 16000);
 
   return {
     company,
@@ -783,7 +853,7 @@ function parseJobDetailMarkdown(markdown, row = {}) {
     workArrangement,
     employmentType,
     salaryRaw,
-    jobDescription: clean(descriptionLines.join(" ")).slice(0, 16000),
+    jobDescription,
     alreadyApplied:
       /\b(you applied|already applied|application submitted|sudah melamar|kamu sudah melamar|lamaran terkirim)\b/i.test(raw),
     isClosed: /\b(job is no longer available|job has expired|lowongan ini telah ditutup|lowongan ditutup|closed)\b/i.test(raw),
@@ -817,6 +887,19 @@ function browserActExtractWithChromeDirect(target, rules = {}, handleSearchMarkd
     runBrowserAct(["--session", sessionName, "browser", "open", browserId, target.url], { timeout: 120000 });
     runBrowserAct(["--session", sessionName, "wait", "stable", "--timeout", "45000"], { timeout: 60000 });
     const markdown = runBrowserAct(["--session", sessionName, "get", "markdown"], { timeout: 120000 });
+    if (
+      /performing security verification|verify you are human|cf-chl-widget|cloudflare.{0,80}(?:ray id|security challenge)|just a moment/i.test(
+        markdown
+      )
+    ) {
+      throw new Error(
+        target.source +
+          " tertahan verifikasi keamanan Cloudflare. Gunakan browser Stealth atau selesaikan verifikasi manusia sebelum scraping."
+      );
+    }
+    if (/sign in to linkedin|join linkedin|authwall|login untuk melanjutkan|masuk untuk melanjutkan/i.test(markdown)) {
+      throw new Error(target.source + " meminta login ulang pada browser automation.");
+    }
     return handleSearchMarkdown(markdown, {
       readDetail(detailUrl) {
         runBrowserAct(["--session", sessionName, "navigate", detailUrl], { timeout: 120000 });
@@ -905,7 +988,7 @@ function inferPriority(row) {
 function normalizeJob(row, index = 0, { rules = {} } = {}) {
   const existingId = clean(pick(row, ["tracking_id", "id", "ID"]));
   const source = clean(pick(row, ["source", "Apply Via", "applyVia"])) || "Manual";
-  const jobTitle = clean(pick(row, ["job_title", "Job Position", "jobPosition", "title"]));
+  const jobTitle = cleanJobLinkTitle(pick(row, ["job_title", "Job Position", "jobPosition", "title"]));
   const company = clean(pick(row, ["company", "Company Name", "companyName"]));
   const jobUrl = canonicalJobUrl(pick(row, ["job_url", "Source Link", "sourceLink", "url"]));
   const status = clean(pick(row, ["pipeline_status", "Status", "status"]));
@@ -924,13 +1007,17 @@ function normalizeJob(row, index = 0, { rules = {} } = {}) {
     jobTitle,
     company,
     companyLogoUrl: clean(pick(row, ["company_logo_url", "companyLogoUrl", "logo_url", "logoUrl"])),
-    location: clean(pick(row, ["location"])),
+    location: /linkedin/i.test(source)
+      ? cleanLinkedInLocation(pick(row, ["location"]))
+      : clean(pick(row, ["location"])),
     workArrangement: clean(pick(row, ["work_arrangement", "workArrangement"])),
     employmentType: clean(pick(row, ["employment_type", "employmentType"])),
-    salaryRaw: clean(pick(row, ["salary_raw"])),
+    salaryRaw: cleanSalaryRaw(pick(row, ["salary_raw"])),
     matchedQuery: clean(pick(row, ["matched_query"])),
     matchedPortfolioSkills: clean(pick(row, ["matched_portfolio_skills", "Skills Matched"])),
-    jobDescription: clean(pick(row, ["job_description", "jobDescription"])),
+    jobDescription: /linkedin/i.test(source)
+      ? cleanLinkedInDescription(pick(row, ["job_description", "jobDescription"]))
+      : clean(pick(row, ["job_description", "jobDescription"])),
     alreadyApplied: Boolean(row?.already_applied ?? row?.alreadyApplied),
     isClosed: Boolean(row?.is_closed ?? row?.isClosed),
     detailFetchStatus: clean(pick(row, ["detail_fetch_status", "detailFetchStatus"])),
@@ -978,6 +1065,41 @@ function addRunLog(run, message, data = {}) {
 
 function isRunActive(run) {
   return ["running", "starting"].includes(normalizeStatus(run?.status));
+}
+
+function processIsAlive(pid) {
+  const numericPid = Number(pid);
+  if (!Number.isFinite(numericPid) || numericPid <= 0) return false;
+  try {
+    process.kill(numericPid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function recoverStaleScrapeRun(state) {
+  const run = state.scrapeRun;
+  if (!isRunActive(run)) return { state, recovered: false };
+
+  const age = Date.now() - Date.parse(run.startedAt || run.updatedAt || "");
+  if ((!run.workerPid && Number.isFinite(age) && age < 10000) || processIsAlive(run.workerPid)) {
+    return { state, recovered: false };
+  }
+
+  return {
+    recovered: true,
+    state: {
+      ...state,
+      scrapeRun: {
+        ...run,
+        status: "failed",
+        finishedAt: new Date().toISOString(),
+        message: "Worker scraping terhenti. Silakan jalankan pencarian kembali.",
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  };
 }
 
 function recoverStaleApplyingJobs(state) {
@@ -1073,8 +1195,9 @@ function closeBrowserActSession(sessionName) {
 }
 
 export function getAutoApplyState() {
-  const { state, recovered } = recoverStaleApplyingJobs(readStateFile());
-  return recovered ? writeStateFile(state) : state;
+  const staleJobs = recoverStaleApplyingJobs(readStateFile());
+  const staleScrape = recoverStaleScrapeRun(staleJobs.state);
+  return staleJobs.recovered || staleScrape.recovered ? writeStateFile(staleScrape.state) : staleScrape.state;
 }
 
 export function updateAutoApplySettings({ answerBank = {}, rules = {} }) {
@@ -1194,6 +1317,11 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
   let detailsEnriched = 0;
   let detailLimitReached = false;
   const detailErrors = [];
+  const selectedSources = Array.from(new Set(targets.map((target) => target.source)));
+  const sourceLimit = Math.max(1, Math.ceil(limit / Math.max(1, selectedSources.length)));
+  const acceptedBySource = new Map(selectedSources.map((source) => [source, 0]));
+  const blockedSources = new Set();
+  let attemptedTargets = 0;
   const keywordMismatchSamples = [];
   const keywordMissingCounts = new Map();
   const rejectionSamples = [];
@@ -1218,19 +1346,46 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
     outsideTargetLocation: 0,
     missingLocation: 0,
   };
+  const updateScrapeProgress = (patch = {}) => {
+    const activeRun = readStateFile().scrapeRun;
+    if (!["starting", "running"].includes(normalizeStatus(activeRun?.status))) return;
+    patchScrapeRun({
+      status: "running",
+      totalTargets: targets.length,
+      attemptedTargets,
+      extracted,
+      matchedFilters: rows.length,
+      filteredOut,
+      errorsCount: errors.length,
+      ...patch,
+    });
+  };
+
+  updateScrapeProgress({ message: `${targets.length} pencarian disiapkan.` });
 
   for (const target of targets) {
     if (rows.length >= limit || detailLimitReached) {
       break;
     }
+    if (blockedSources.has(target.source) || (acceptedBySource.get(target.source) || 0) >= sourceLimit) {
+      continue;
+    }
 
     try {
+      attemptedTargets += 1;
+      updateScrapeProgress({
+        currentSource: target.source,
+        currentKeyword: target.keyword,
+        currentUrl: target.url,
+        message: `Mencari ${target.keyword} di ${target.source}...`,
+      });
       browserActExtractWithChromeDirect(target, effectiveRules, (markdown, { readDetail }) => {
         const parsedRows = parseJobsFromMarkdown(markdown, target);
         extracted += parsedRows.length;
+        updateScrapeProgress();
 
         for (const row of parsedRows) {
-          if (rows.length >= limit) break;
+          if (rows.length >= limit || (acceptedBySource.get(target.source) || 0) >= sourceLimit) break;
 
           if (wasAlreadyApplied(row, appliedIdentities)) {
             filteredOut += 1;
@@ -1342,6 +1497,7 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
           }
 
           rows.push(enrichedRow);
+          acceptedBySource.set(target.source, (acceptedBySource.get(target.source) || 0) + 1);
         }
       });
     } catch (error) {
@@ -1351,10 +1507,14 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
         url: target.url,
         error: error.message,
       });
+      if (/cloudflare|security verification|verify you are human|captcha|meminta login ulang/i.test(error.message)) {
+        blockedSources.add(target.source);
+      }
     }
+    updateScrapeProgress();
   }
 
-  if (targets.length > 0 && errors.length === targets.length) {
+  if (attemptedTargets > 0 && errors.length === attemptedTargets && rows.length === 0) {
     throw new Error(`Scraping gagal pada semua sumber. ${errors[0].source}: ${errors[0].error}`);
   }
 
@@ -1371,8 +1531,11 @@ export function scrapeAutoApplyJobs({ rules = {} } = {}) {
   const { queueSummary, ...persistedQueuedState } = queuedState;
   const scrapeSummary = {
     targets: targets.length,
+    attemptedTargets,
     extracted,
     matchedFilters: rows.length,
+    sourceLimit,
+    sourceBreakdown: Object.fromEntries(selectedSources.map((source) => [source, acceptedBySource.get(source) || 0])),
     filteredOut,
     rejectionBreakdown,
     keywordMismatchSamples,
@@ -1592,6 +1755,87 @@ export function patchAutoApplyRun(patch = {}, logMessage = "", logData = {}) {
     ...state,
     automationRun: nextRun,
   });
+}
+
+export function patchScrapeRun(patch = {}, logMessage = "", logData = {}) {
+  const state = readStateFile();
+  const currentRun = state.scrapeRun || { id: `SCRAPE-${Date.now()}`, status: "idle", logs: [] };
+  const nextRun = { ...currentRun, ...patch, updatedAt: new Date().toISOString() };
+  if (logMessage) nextRun.logs = addRunLog(nextRun, logMessage, logData);
+  return writeStateFile({ ...state, scrapeRun: nextRun });
+}
+
+export function startAutoApplyScrape({ rules = {} } = {}) {
+  const state = readStateFile();
+  if (["starting", "running"].includes(normalizeStatus(state.scrapeRun?.status))) {
+    return { ...state, scrapeStartSummary: { started: false, reason: "Scraping sedang berjalan." } };
+  }
+
+  const browserAct = browserActAvailable();
+  if (!browserAct.ok) throw new Error(`BrowserAct CLI is not available. ${browserAct.output}`);
+
+  const runId = `SCRAPE-${Date.now()}`;
+  const nextState = patchScrapeRun(
+    {
+      id: runId,
+      status: "starting",
+      startedAt: new Date().toISOString(),
+      finishedAt: "",
+      workerPid: null,
+      message: "Memulai worker scraping BrowserAct...",
+      scrapeSummary: null,
+      importSummary: null,
+      logs: [],
+    },
+    "Scrape worker starting."
+  );
+
+  ensureAutoApplyDir();
+  fs.appendFileSync(SCRAPE_WORKER_LOG_PATH, `\n[${new Date().toISOString()}] Starting ${runId}\n`, "utf8");
+  const child = fork(SCRAPE_WORKER_PATH, ["--run-id", runId, "--rules", JSON.stringify(rules || {})], {
+    cwd: SERVER_ROOT,
+    execArgv: [],
+    silent: true,
+    windowsHide: true,
+    env: { ...process.env, AUTO_SCRAPE_RUN_ID: runId },
+  });
+
+  child.stdout?.on("data", (chunk) => fs.appendFileSync(SCRAPE_WORKER_LOG_PATH, chunk, "utf8"));
+  child.stderr?.on("data", (chunk) => fs.appendFileSync(SCRAPE_WORKER_LOG_PATH, chunk, "utf8"));
+  patchScrapeRun(
+    { id: runId, workerPid: child.pid, message: `Worker scraping dimulai. PID: ${child.pid || "unknown"}` },
+    "Scrape worker process spawned.",
+    { pid: child.pid }
+  );
+
+  child.on("error", (error) => {
+    patchScrapeRun(
+      { id: runId, status: "failed", finishedAt: new Date().toISOString(), message: `Worker gagal start: ${error.message}` },
+      "Scrape worker spawn failed.",
+      { error: error.message }
+    );
+  });
+  child.on("exit", (code, signal) => {
+    const latest = readStateFile();
+    if (latest.scrapeRun?.id === runId && ["starting", "running"].includes(normalizeStatus(latest.scrapeRun.status))) {
+      patchScrapeRun(
+        {
+          id: runId,
+          status: "failed",
+          finishedAt: new Date().toISOString(),
+          message: `Worker scraping berhenti sebelum selesai. Exit code: ${code ?? "none"}.`,
+        },
+        "Scrape worker exited before completion.",
+        { code, signal }
+      );
+    }
+  });
+
+  return {
+    ...nextState,
+    scrapeRun: { ...nextState.scrapeRun, workerPid: child.pid },
+    scrapeStartSummary: { started: true, runId },
+  };
 }
 
 export function startAutoApplyRun({ jobIds = [], limit, source = "All" } = {}) {
@@ -1856,7 +2100,13 @@ export function prepareAutoApplyRun({ jobIds = [], source = "All" } = {}) {
   });
 
   const blockedReasons = [];
-  if (!state.answerBank.cvPath) blockedReasons.push("CV path is empty.");
+  if (!state.answerBank.cvPath) {
+    blockedReasons.push("CV path is empty.");
+  } else if (!fs.existsSync(state.answerBank.cvPath)) {
+    blockedReasons.push(`CV file not found: ${state.answerBank.cvPath}`);
+  } else if (!fs.statSync(state.answerBank.cvPath).isFile()) {
+    blockedReasons.push(`CV path is not a file: ${state.answerBank.cvPath}`);
+  }
   if (!state.answerBank.expectedSalary) blockedReasons.push("Expected salary is empty.");
   if (!state.answerBank.availability) blockedReasons.push("Availability is empty.");
 
@@ -1889,6 +2139,7 @@ export const autoApplyFilterInternals = {
   matchesTargetLocation,
   normalizePipelineStatus,
   parseJobDetailMarkdown,
+  parseJobsFromMarkdown,
   removeJobsFromState,
   wasAlreadyApplied,
 };

@@ -1,4 +1,6 @@
 import express from "express";
+import path from "path";
+import { uploadCv } from "../middleware/upload.middleware.js";
 import {
   deleteAutoApplyJob,
   deleteAutoApplyJobs,
@@ -6,7 +8,7 @@ import {
   importAutoApplyJobs,
   prepareAutoApplyRun,
   queueEligibleJobsForAutoApply,
-  scrapeAutoApplyJobs,
+  startAutoApplyScrape,
   startAutoApplyRun,
   stopAutoApplyRun,
   updateAutoApplyJob,
@@ -35,8 +37,8 @@ router.post("/auto-apply/import", (req, res, next) => {
 
 router.post("/auto-apply/scrape", (req, res, next) => {
   try {
-    const data = scrapeAutoApplyJobs(req.body || {});
-    return successResponse(res, "Website scraping completed.", data);
+    const data = startAutoApplyScrape(req.body || {});
+    return successResponse(res, "Website scraping started.", data);
   } catch (error) {
     next(error);
   }
@@ -49,6 +51,24 @@ router.put("/auto-apply/settings", (req, res, next) => {
       rules: req.body.rules,
     });
     return successResponse(res, "Auto apply settings saved.", data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/auto-apply/upload-cv", uploadCv.single("cv"), (req, res, next) => {
+  try {
+    if (!req.file) {
+      throw new Error("CV file is required.");
+    }
+
+    const data = updateAutoApplySettings({
+      answerBank: {
+        cvPath: path.resolve(req.file.path),
+        cvFileName: req.file.originalname,
+      },
+    });
+    return successResponse(res, "CV uploaded and saved to Answer Bank.", data);
   } catch (error) {
     next(error);
   }

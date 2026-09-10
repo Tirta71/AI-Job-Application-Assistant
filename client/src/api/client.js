@@ -135,6 +135,18 @@ export async function saveAutoApplySettings(payload) {
   return parseResponse(response);
 }
 
+export async function uploadAutoApplyCv(file) {
+  const formData = new FormData();
+  formData.append("cv", file);
+
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/upload-cv`, {
+    method: "POST",
+    body: formData,
+  });
+
+  return parseResponse(response);
+}
+
 export async function updateAutoApplyJob(jobId, patch) {
   const response = await fetch(`${API_BASE_URL}/api/auto-apply/jobs/${encodeURIComponent(jobId)}`, {
     method: "PATCH",

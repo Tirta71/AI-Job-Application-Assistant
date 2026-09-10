@@ -18,6 +18,7 @@ const {
   matchesTargetLocation,
   normalizePipelineStatus,
   parseJobDetailMarkdown,
+  parseJobsFromMarkdown,
   removeJobsFromState,
   wasAlreadyApplied,
 } = autoApplyFilterInternals;
@@ -100,6 +101,23 @@ test("screening mapper does not use a cover note for experience questions", () =
   assert.equal(experienceToNumber("<1 year"), "0.5");
 });
 
+test("salary fields use expected salary and never receive prose fallback", () => {
+  const bank = {
+    expectedSalary: "4.500.000",
+    fallbackScreeningAnswer: "FALLBACK SCREENING TEXT",
+  };
+
+  assert.equal(classifyApplicationQuestion("Berapa gaji bulanan yang kamu harapkan?"), "expectedSalary");
+  assert.equal(classifyApplicationQuestion("What is your desired monthly compensation?"), "expectedSalary");
+  assert.equal(answerForApplicationQuestion("Berapa ekspektasi pendapatan bulananmu?", bank, "number"), "4.500.000");
+  assert.equal(answerForApplicationQuestion("Type your answer", bank, "number"), "");
+});
+
+test("localized English and notice questions map to their dedicated answers", () => {
+  assert.equal(classifyApplicationQuestion("Seberapa mahir kamu dalam bahasa Inggris?"), "englishProficiency");
+  assert.equal(classifyApplicationQuestion("How much notice are you required to give?"), "noticePeriod");
+});
+
 test("audited JobStreet questions map to multi-value answer bank fields", () => {
   assert.equal(
     classifyApplicationQuestion("Which relational database management systems are you experienced with?"),
@@ -111,6 +129,53 @@ test("audited JobStreet questions map to multi-value answer bank fields", () => 
   );
   assert.equal(classifyApplicationQuestion("Kualifikasi mana yang kamu miliki?"), "educationLevel");
   assert.equal(classifyApplicationQuestion("Apakah kamu tinggal di Jakarta Pusat pada saat ini?"), "livesInJobLocation");
+});
+
+test("LinkedIn scraper parses verified job links whose labels span multiple lines", () => {
+  const markdown = `
+* [**Frontend Developer**
+  Frontend Developer with verification](https://www.linkedin.com/jobs/view/4462139650/?trackingId=test)
+  PT. Intikom Berlian Mustika
+  + Jakarta Metropolitan Area (On-site)
+  + Easy Apply
+`;
+
+  const rows = parseJobsFromMarkdown(markdown, {
+    source: "LinkedIn",
+    keyword: "Frontend React",
+    location: "Greater Jakarta Area",
+  });
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].job_title, "Frontend Developer");
+  assert.equal(rows[0].company, "PT. Intikom Berlian Mustika");
+  assert.match(rows[0].job_url, /linkedin\.com\/jobs\/view\/4462139650$/);
+});
+
+test("LinkedIn detail parser keeps only job content and rejects URL-like salary text", () => {
+  const markdown = `
+Fullstack Engineer (SDE 2)
+[Kredivo Group](https://www.linkedin.com/company/kredivo-group/life/)
+Jakarta Metropolitan Area · Reposted 2 weeks ago · Over 100 applicants
+Junior Developer](https://www.linkedin.com/jobs/view/123/?trackingId=idr4500000)
+About the job
+Build and maintain scalable React and Node.js applications.
+Collaborate with Product and Engineering teams.
+Set alert for similar jobs
+About the company
+This company profile should not enter the job description.
+`;
+
+  const detail = parseJobDetailMarkdown(markdown, {
+    source: "LinkedIn",
+    job_title: "Fullstack Engineer (SDE 2)",
+  });
+
+  assert.equal(detail.company, "Kredivo Group");
+  assert.equal(detail.location, "Jakarta Metropolitan Area");
+  assert.equal(detail.salaryRaw, "");
+  assert.match(detail.jobDescription, /^Build and maintain scalable/);
+  assert.doesNotMatch(detail.jobDescription, /Skip to|About the company|linkedin\.com\/jobs\/view/);
 });
 
 test("keyword matching requires the meaningful query terms", () => {
@@ -218,6 +283,7 @@ Employer questions
   assert.equal(detail.companyLogoUrl, "https://cdn.example.com/company-logo/quintal.png");
   assert.match(detail.salaryRaw, /8\.000\.000/);
   assert.match(detail.jobDescription, /Build and maintain/);
+  assert.doesNotMatch(detail.jobDescription, /={3,}/);
   assert.equal(detail.alreadyApplied, true);
 });
 
