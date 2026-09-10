@@ -81,7 +81,7 @@ export default function App() {
 
     const timer = window.setTimeout(async () => {
       try {
-        setFileRefreshStatus({ type: "warning", message: "Updating CV file from your edits..." });
+        setFileRefreshStatus({ type: "warning", message: "Memperbarui file CV dari perubahan Anda..." });
         const response = await renderApplicationCv({
           profile,
           job,
@@ -108,11 +108,11 @@ export default function App() {
         });
         setFileRefreshStatus({
           type: response.data.warning ? "warning" : "success",
-          message: response.data.warning || "CV file updated from your edits."
+          message: response.data.warning || "File CV berhasil diperbarui."
         });
       } catch (error) {
         if (latestRenderVersion.current === currentVersion) {
-          setFileRefreshStatus({ type: "error", message: `CV file update failed. ${error.message}` });
+          setFileRefreshStatus({ type: "error", message: `File CV gagal diperbarui. ${error.message}` });
         }
       }
     }, 800);
@@ -122,7 +122,7 @@ export default function App() {
 
   async function handleGenerate() {
     if (!canGenerate) {
-      setStatus({ type: "error", message: "Complete required fields and use a valid DOCX template." });
+      setStatus({ type: "error", message: "Lengkapi semua kolom wajib dan gunakan template DOCX yang valid." });
       return;
     }
 
@@ -173,29 +173,22 @@ export default function App() {
 
     try {
       await navigator.clipboard.writeText(value);
-      setCopyStatus(`${label} copied.`);
+      setCopyStatus(`${label} berhasil disalin.`);
       window.setTimeout(() => setCopyStatus(""), 2200);
     } catch {
-      setCopyStatus("Copy failed.");
+      setCopyStatus("Teks gagal disalin.");
       window.setTimeout(() => setCopyStatus(""), 2200);
     }
   }
 
-  const tabLabels = {
-    jobs: "Jelajahi Lowongan",
-    applications: "Lamaran Saya",
-    autoApply: "Lamar Otomatis",
-    profileCv: "Profil & CV",
-    sources: "Sumber & Rules",
-  };
-
   return (
-    <main className={`app-shell ${["jobs", "applications", "autoApply"].includes(activeTab) ? "home-page" : ""} ${activeTab === "autoApply" ? "auto-apply-page" : ""}`}>
+    <main className={`app-shell home-page page-${activeTab} ${activeTab === "autoApply" ? "auto-apply-page" : ""}`}>
       <header className="soft-topbar">
         <div className="soft-brand">
           <div className="brand-image-frame">
-            <img className="brand-image" src="/applymate-logo.png" alt="ApplyMate" width="500" height="500" />
+            <img className="brand-image" src="/applymate-logo.png" alt="" width="500" height="500" />
           </div>
+          <strong className="brand-wordmark">Apply<span>Mate</span></strong>
         </div>
 
         <nav className="app-tabs" aria-label="Application sections">
@@ -214,30 +207,26 @@ export default function App() {
 
         <div className="user-pill">
           <div className="user-avatar">{(profile.fullName || "U").charAt(0)}</div>
-          <div>
-            <strong>{(profile.fullName || "Pengguna").split(" ")[0]}</strong>
-            <span>Profil pribadi</span>
-          </div>
+          <strong className="user-name">{(profile.fullName || "Pengguna").split(" ")[0]}</strong>
         </div>
       </header>
 
-      {!["jobs", "applications", "autoApply"].includes(activeTab) && <section className="app-hero">
-        <div>
-          <span className="eyebrow">RUANG KARIER ANDA</span>
-          <h1>{activeTab === "jobs" ? "Temukan peluang berikutnya." : tabLabels[activeTab]}</h1>
-          <p className="subtitle">
-            {activeTab === "jobs" ? "Cari lowongan, pilih yang cocok, dan kelola lamaran dalam satu tempat." : "Kelola setiap langkah pencarian kerja Anda."}
-          </p>
-        </div>
-        {activeTab === "profileCv" && (
-          <button className="primary-button header-button" type="button" onClick={handleGenerate} disabled={loading || !canGenerate}>
-            {loading ? "Generating..." : "Generate CV & Letter"}
-          </button>
-        )}
-      </section>}
+      {activeTab === "profileCv" && (
+        <section className="explorer-overview profile-overview" aria-labelledby="profile-page-title">
+          <div className="explorer-title-row">
+            <div>
+              <h1 id="profile-page-title">Profil &amp; CV</h1>
+              <p>Lengkapi profil, unggah template, lalu buat dokumen lamaran yang sesuai lowongan.</p>
+            </div>
+            <button className="primary-button header-button" type="button" onClick={handleGenerate} disabled={loading || !canGenerate}>
+              {loading ? "Membuat dokumen..." : "Buat CV & Surat Lamaran"}
+            </button>
+          </div>
+        </section>
+      )}
 
       {activeTab === "profileCv" ? (
-        <div className="page-grid">
+        <div className="page-grid profile-workspace">
           <div className="main-column">
             <ProfileForm profile={profile} onChange={setProfile} onReset={handleResetProfile} />
             <TemplateUpload
@@ -250,7 +239,7 @@ export default function App() {
 
             <section className="panel generate-panel">
               <button className="primary-button wide-button" type="button" onClick={handleGenerate} disabled={loading || !canGenerate}>
-                {loading ? "Generating Application..." : "Generate Application"}
+                {loading ? "Membuat dokumen lamaran..." : "Buat Dokumen Lamaran"}
               </button>
               {status.message && <p className={`status ${status.type}`}>{status.message}</p>}
             </section>

@@ -562,6 +562,49 @@ function inferLine(lines, startIndex, matcher) {
   return window.find(matcher) || "";
 }
 
+function markdownImages(markdown) {
+  const images = [];
+  const regex = /!\[([^\]]*)]\((https?:\/\/[^)\s]+)(?:\s+"[^"]*")?\)/g;
+  let match = regex.exec(String(markdown || ""));
+
+  while (match) {
+    images.push({
+      alt: cleanMarkdownText(match[1]),
+      url: match[2].replace(/&amp;/g, "&"),
+      index: match.index,
+    });
+    match = regex.exec(String(markdown || ""));
+  }
+
+  return images;
+}
+
+function findCompanyLogoUrl(markdown, { company = "", title = "" } = {}) {
+  const raw = String(markdown || "");
+  const images = markdownImages(raw).filter((image) => {
+    const value = `${image.alt} ${image.url}`;
+    return !/tracking|pixel|spinner|loading|avatar|profile-photo|flag|icon-chevron|icon-search|data:image/i.test(value);
+  });
+  if (!images.length) return "";
+
+  const normalizedCompany = slug(company);
+  const titleIndex = raw.toLowerCase().indexOf(String(title || "").toLowerCase());
+  const anchorIndex = titleIndex >= 0 ? titleIndex : 0;
+
+  return [...images]
+    .map((image) => {
+      const normalizedAlt = slug(image.alt);
+      const normalizedUrl = slug(image.url);
+      let score = Math.max(0, 5000 - Math.abs(image.index - anchorIndex)) / 1000;
+      if (normalizedCompany && normalizedAlt.includes(normalizedCompany)) score += 12;
+      if (normalizedCompany && normalizedUrl.includes(normalizedCompany)) score += 7;
+      if (/company.?logo|logo|company.?image|organization.?logo/i.test(`${image.alt} ${image.url}`)) score += 5;
+      if (/media\.licdn|seeklogo|glints|jobstreet|cloudfront|googleusercontent/i.test(image.url)) score += 2;
+      return { ...image, score };
+    })
+    .sort((first, second) => second.score - first.score)[0]?.url || "";
+}
+
 function parseJobsFromMarkdown(markdown, target) {
   const rows = [];
   const seenUrls = new Set();
@@ -589,7 +632,7 @@ function parseJobsFromMarkdown(markdown, target) {
 
       if (sameSource && detailUrl && looksLikeJobTitle(title) && !genericLink && !seenUrls.has(jobUrl)) {
         seenUrls.add(jobUrl);
-        const contextLines = lines.slice(index, index + 12);
+        const contextLines = lines.slice(Math.max(0, index - 4), index + 16);
         const contextRaw = contextLines.join("\n");
         const context = contextLines.map(cleanMarkdownText).join(" ");
         const companyMatch =
@@ -628,6 +671,7 @@ function parseJobsFromMarkdown(markdown, target) {
           salary_raw: salaryRaw,
           matched_query: target.keyword,
           matched_portfolio_skills: detectSkills(`${title} ${context}`).join(", "),
+          company_logo_url: findCompanyLogoUrl(contextRaw, { company, title }),
           job_url: jobUrl,
           scraped_at: new Date().toISOString(),
         });
@@ -734,6 +778,7 @@ function parseJobDetailMarkdown(markdown, row = {}) {
 
   return {
     company,
+    companyLogoUrl: findCompanyLogoUrl(raw, { company, title }),
     location,
     workArrangement,
     employmentType,
@@ -750,6 +795,7 @@ function enrichScrapedRow(row, detail) {
   return {
     ...row,
     company: detail.company || row.company,
+    company_logo_url: detail.companyLogoUrl || row.company_logo_url || "",
     location: detail.location || row.location,
     work_arrangement: detail.workArrangement || row.work_arrangement,
     employment_type: detail.employmentType || row.employment_type,
@@ -877,6 +923,7 @@ function normalizeJob(row, index = 0, { rules = {} } = {}) {
     source,
     jobTitle,
     company,
+    companyLogoUrl: clean(pick(row, ["company_logo_url", "companyLogoUrl", "logo_url", "logoUrl"])),
     location: clean(pick(row, ["location"])),
     workArrangement: clean(pick(row, ["work_arrangement", "workArrangement"])),
     employmentType: clean(pick(row, ["employment_type", "employmentType"])),
@@ -1469,6 +1516,61 @@ export function updateAutoApplyJob(jobId, patch = {}) {
   return writeStateFile(nextState);
 }
 
+function removeJobsFromState(state, jobIds = []) {
+  const requestedIds = new Set(
+    (Array.isArray(jobIds) ? jobIds : [])
+      .map((jobId) => clean(jobId))
+      .filter(Boolean)
+  );
+  const deletedIds = state.jobs
+    .filter((job) => requestedIds.has(clean(job.id)))
+    .map((job) => job.id);
+
+  return {
+    jobs: state.jobs.filter((job) => !requestedIds.has(clean(job.id))),
+    deletedIds,
+    missingIds: [...requestedIds].filter((jobId) => !deletedIds.includes(jobId)),
+  };
+}
+
+export function deleteAutoApplyJobs(jobIds = []) {
+  if (!Array.isArray(jobIds)) {
+    throw new Error("Job IDs must be an array.");
+  }
+
+  const state = readStateFile();
+  if (isRunActive(state.automationRun)) {
+    throw new Error("Hentikan auto apply sebelum menghapus lowongan.");
+  }
+
+  const result = removeJobsFromState(state, jobIds);
+  if (!result.deletedIds.length) {
+    throw new Error("Lowongan tidak ditemukan.");
+  }
+
+  const nextState = {
+    ...state,
+    jobs: result.jobs,
+  };
+  nextState.activityLog = addLog(nextState, "Jobs deleted from auto apply state.", {
+    deleted: result.deletedIds.length,
+    jobIds: result.deletedIds,
+  });
+
+  return {
+    ...writeStateFile(nextState),
+    deleteSummary: {
+      deleted: result.deletedIds.length,
+      deletedIds: result.deletedIds,
+      missingIds: result.missingIds,
+    },
+  };
+}
+
+export function deleteAutoApplyJob(jobId) {
+  return deleteAutoApplyJobs([jobId]);
+}
+
 export function patchAutoApplyRun(patch = {}, logMessage = "", logData = {}) {
   const state = readStateFile();
   const currentRun = state.automationRun || {
@@ -1787,5 +1889,6 @@ export const autoApplyFilterInternals = {
   matchesTargetLocation,
   normalizePipelineStatus,
   parseJobDetailMarkdown,
+  removeJobsFromState,
   wasAlreadyApplied,
 };

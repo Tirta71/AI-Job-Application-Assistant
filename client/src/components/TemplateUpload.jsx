@@ -40,13 +40,13 @@ export default function TemplateUpload({ templateFileName, templateStatus, onUpl
     }
 
     if (!file.name.toLowerCase().endsWith(".docx")) {
-      setStatus({ type: "error", message: "Only .docx files are allowed." });
+      setStatus({ type: "error", message: "Gunakan file dengan format .docx." });
       event.target.value = "";
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setStatus({ type: "error", message: "Template must be 5MB or smaller." });
+      setStatus({ type: "error", message: "Ukuran template maksimal 5 MB." });
       event.target.value = "";
       return;
     }
@@ -58,7 +58,7 @@ export default function TemplateUpload({ templateFileName, templateStatus, onUpl
       const nextTemplateFileName = response.data.templateFileName;
       const nextStatus = await runTemplateCheck(nextTemplateFileName);
       onUploaded(nextTemplateFileName, nextStatus);
-      setStatus({ type: nextStatus?.valid ? "success" : "warning", message: nextStatus?.message || "Template uploaded." });
+      setStatus({ type: nextStatus?.valid ? "success" : "warning", message: nextStatus?.message || "Template berhasil diunggah." });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
     } finally {
@@ -70,19 +70,19 @@ export default function TemplateUpload({ templateFileName, templateStatus, onUpl
     <section className="panel" id="template">
       <div className="section-heading">
         <span className="section-number">02</span>
-        <h2>Upload CV Template</h2>
+        <h2>Template CV</h2>
       </div>
 
       <div className="upload-box">
         <input ref={inputRef} type="file" accept=".docx" onChange={handleUpload} hidden />
         <button className="secondary-button" type="button" onClick={() => inputRef.current?.click()} disabled={loading}>
-          {loading ? "Uploading..." : "Upload Template"}
+          {loading ? "Mengunggah..." : "Pilih Template"}
         </button>
         <button className="secondary-button" type="button" onClick={() => runTemplateCheck(templateFileName)} disabled={!templateFileName || checking}>
-          {checking ? "Checking..." : "Check Template"}
+          {checking ? "Memeriksa..." : "Periksa Template"}
         </button>
         <div className="upload-meta">
-          <strong>{templateFileName || "No template uploaded"}</strong>
+          <strong>{templateFileName || "Belum ada template"}</strong>
           <span>DOCX, max 5MB</span>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function TemplateUpload({ templateFileName, templateStatus, onUpl
           <span className="badge">{templateStatus.valid ? "Template CV valid" : "Template CV belum lengkap"}</span>
           {!templateStatus.valid && templateStatus.missingPlaceholders?.length > 0 && (
             <div className="missing-list">
-              <strong>Missing placeholders:</strong>
+              <strong>Placeholder yang belum ada:</strong>
               <span>{templateStatus.missingPlaceholders.join(", ")}</span>
             </div>
           )}

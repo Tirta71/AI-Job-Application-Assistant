@@ -18,8 +18,26 @@ const {
   matchesTargetLocation,
   normalizePipelineStatus,
   parseJobDetailMarkdown,
+  removeJobsFromState,
   wasAlreadyApplied,
 } = autoApplyFilterInternals;
+
+test("job deletion removes one or many requested jobs without touching other state", () => {
+  const state = {
+    jobs: [{ id: "JOB-1" }, { id: "JOB-2" }, { id: "JOB-3" }],
+    rules: { sources: "Glints" },
+  };
+
+  const single = removeJobsFromState(state, ["JOB-2"]);
+  assert.deepEqual(single.jobs.map((job) => job.id), ["JOB-1", "JOB-3"]);
+  assert.deepEqual(single.deletedIds, ["JOB-2"]);
+
+  const multiple = removeJobsFromState(state, ["JOB-1", "JOB-3", "JOB-MISSING", "JOB-3"]);
+  assert.deepEqual(multiple.jobs.map((job) => job.id), ["JOB-2"]);
+  assert.deepEqual(multiple.deletedIds, ["JOB-1", "JOB-3"]);
+  assert.deepEqual(multiple.missingIds, ["JOB-MISSING"]);
+  assert.deepEqual(state.rules, { sources: "Glints" });
+});
 
 test("legacy job states migrate to the three user-facing statuses", () => {
   assert.equal(normalizePipelineStatus("Favorit"), "Disimpan");
@@ -178,6 +196,7 @@ test("JobStreet detail markdown enriches company, location, salary, and descript
   const markdown = `
 Full Stack Developer
 ====================
+![PT Quintal Edutama Solusindo logo](https://cdn.example.com/company-logo/quintal.png)
 PT Quintal Edutama Solusindo
 [West Jakarta, Jakarta](https://id.jobstreet.com/Full-Stack-Developer-jobs/in-West-Jakarta-Jakarta)
 [Full time](https://id.jobstreet.com/Full-Stack-Developer-jobs/full-time)
@@ -196,6 +215,7 @@ Employer questions
   assert.equal(detail.company, "PT Quintal Edutama Solusindo");
   assert.equal(detail.location, "West Jakarta, Jakarta");
   assert.equal(detail.employmentType, "Full-time");
+  assert.equal(detail.companyLogoUrl, "https://cdn.example.com/company-logo/quintal.png");
   assert.match(detail.salaryRaw, /8\.000\.000/);
   assert.match(detail.jobDescription, /Build and maintain/);
   assert.equal(detail.alreadyApplied, true);
@@ -208,6 +228,7 @@ test("Glints detail markdown reads the final breadcrumb location and closed stat
 [Jawa Barat](https://glints.com/id/job-location/indonesia/jawa-barat)
 [Bogor](https://glints.com/id/job-location/indonesia/jawa-barat/bogor)
 Fullstack Web Developer
+![Kelanara Studio](https://images.glints.com/company-logo/kelanara.webp)
 [Kelanara Studio](https://glints.com/id/companies/kelanara-studio)
 Rp 600.000 - 1.000.000 / Bulan
 Magang · Kerja di lokasi
@@ -222,5 +243,6 @@ Lowongan ini telah ditutup
   assert.equal(detail.location, "Bogor");
   assert.equal(detail.workArrangement, "On-site");
   assert.equal(detail.employmentType, "Internship");
+  assert.equal(detail.companyLogoUrl, "https://images.glints.com/company-logo/kelanara.webp");
   assert.equal(detail.isClosed, true);
 });

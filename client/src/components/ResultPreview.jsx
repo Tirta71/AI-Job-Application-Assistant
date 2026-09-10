@@ -22,7 +22,7 @@ function ChipBlock({ title, items, tone = "neutral" }) {
           ))}
         </div>
       ) : (
-        <p className="muted">No items</p>
+        <p className="muted">Belum ada data</p>
       )}
     </div>
   );
@@ -33,7 +33,7 @@ function ImprovementBlock({ items }) {
 
   return (
     <div className="result-block">
-      <h3>CV Improvement</h3>
+      <h3>Saran Perbaikan CV</h3>
       {safeItems.length > 0 ? (
         <ul className="check-list">
           {safeItems.map((item) => (
@@ -41,7 +41,7 @@ function ImprovementBlock({ items }) {
           ))}
         </ul>
       ) : (
-        <p className="muted">No items</p>
+        <p className="muted">Belum ada saran</p>
       )}
     </div>
   );
@@ -58,18 +58,18 @@ function EditField({ label, value, rows = 2, onChange }) {
 
 function CvSlotsBlock({ result, onFieldChange }) {
   const summaryFields = [
-    ["summaryLine1", "Line 1"],
-    ["summaryLine2", "Line 2"],
-    ["summaryLine3", "Line 3"],
-    ["summaryLine4", "Line 4"]
+    ["summaryLine1", "Baris 1"],
+    ["summaryLine2", "Baris 2"],
+    ["summaryLine3", "Baris 3"],
+    ["summaryLine4", "Baris 4"]
   ];
   const workFields = [
-    ["workBullet1", "Work bullet 1"],
-    ["workBullet2", "Work bullet 2"]
+    ["workBullet1", "Poin pengalaman 1"],
+    ["workBullet2", "Poin pengalaman 2"]
   ];
   const projectFields = [
-    ["projectBullet1", "Project bullet 1"],
-    ["projectBullet2", "Project bullet 2"]
+    ["projectBullet1", "Poin proyek 1"],
+    ["projectBullet2", "Poin proyek 2"]
   ];
   const skillRows = [
     ["skillsWeb", "Web"],
@@ -80,10 +80,10 @@ function CvSlotsBlock({ result, onFieldChange }) {
 
   return (
     <div className="result-block">
-      <h3>AI Tailored CV Slots</h3>
+      <h3>Isi CV yang Disesuaikan AI</h3>
 
       <div className="slot-group">
-        <strong>Summary</strong>
+        <strong>Ringkasan</strong>
         <div className="editable-slot-grid">
           {summaryFields.map(([field, label]) => (
             <EditField key={field} label={label} value={result[field]} onChange={(value) => onFieldChange(field, value)} />
@@ -92,7 +92,7 @@ function CvSlotsBlock({ result, onFieldChange }) {
       </div>
 
       <div className="slot-group">
-        <strong>Work Experience</strong>
+        <strong>Pengalaman Kerja</strong>
         <div className="editable-slot-grid">
           {workFields.map(([field, label]) => (
             <EditField key={field} label={label} value={result[field]} rows={3} onChange={(value) => onFieldChange(field, value)} />
@@ -101,7 +101,7 @@ function CvSlotsBlock({ result, onFieldChange }) {
       </div>
 
       <div className="slot-group">
-        <strong>Project</strong>
+        <strong>Proyek</strong>
         <div className="editable-slot-grid">
           {projectFields.map(([field, label]) => (
             <EditField key={field} label={label} value={result[field]} rows={3} onChange={(value) => onFieldChange(field, value)} />
@@ -110,7 +110,7 @@ function CvSlotsBlock({ result, onFieldChange }) {
       </div>
 
       <div className="slot-group">
-        <strong>Skills</strong>
+        <strong>Keahlian</strong>
         <div className="skill-slot-grid editable-skills">
           {skillRows.map(([field, label]) => (
             <EditField key={field} label={label} value={result[field]} rows={2} onChange={(value) => onFieldChange(field, value)} />
@@ -129,9 +129,9 @@ export default function ResultPreview({ result, copyStatus, fileRefreshStatus, o
       <section className="panel" id="result">
         <div className="section-heading">
           <span className="section-number">04</span>
-          <h2>Generate Result</h2>
+          <h2>Hasil Lamaran</h2>
         </div>
-        <div className="empty-state">Paste a job description and click Generate to preview your tailored application.</div>
+        <div className="empty-state">Lengkapi detail lowongan dan buat dokumen untuk melihat hasil yang telah disesuaikan.</div>
       </section>
     );
   }
@@ -165,19 +165,19 @@ export default function ResultPreview({ result, copyStatus, fileRefreshStatus, o
     coverLetter: {
       title: "Cover Letter",
       copyLabel: "Cover letter",
-      buttonLabel: "Copy Cover Letter",
+      buttonLabel: "Salin Cover Letter",
       value: result.coverLetter
     },
     email: {
       title: "Email",
       copyLabel: "Email",
-      buttonLabel: "Copy Email",
+      buttonLabel: "Salin Email",
       value: emailText
     },
     linkedinDM: {
       title: "LinkedIn DM",
       copyLabel: "LinkedIn DM",
-      buttonLabel: "Copy LinkedIn DM",
+      buttonLabel: "Salin LinkedIn DM",
       value: result.linkedinDM
     }
   }[activeTab];
@@ -189,7 +189,7 @@ export default function ResultPreview({ result, copyStatus, fileRefreshStatus, o
     <section className="panel" id="result">
       <div className="section-heading">
         <span className="section-number">04</span>
-        <h2>Generate Result</h2>
+        <h2>Hasil Lamaran</h2>
       </div>
 
       {result.warning && <p className="status warning subtle-warning">{result.warning}</p>}
@@ -200,23 +200,23 @@ export default function ResultPreview({ result, copyStatus, fileRefreshStatus, o
         <div className="score-comparison">
           <div className="score-card before-score" aria-label={`Before optimization match score ${beforeScore}`}>
             <span>{beforeScore}</span>
-            <small>Before Optimize</small>
+            <small>Sebelum</small>
           </div>
           <div className="score-card after-score" aria-label={`After optimization match score ${afterScore}`}>
             <span>{afterScore}</span>
-            <small>After Optimize</small>
+            <small>Sesudah</small>
             {scoreDelta !== 0 && <em className={scoreDelta > 0 ? "positive-delta" : "negative-delta"}>{scoreDelta > 0 ? `+${scoreDelta}` : scoreDelta}</em>}
           </div>
         </div>
         <div className="result-block notes-card">
-          <h3>AI Notes</h3>
-          <p className="pre-line">{result.notes || "Generated analysis is ready."}</p>
+          <h3>Catatan AI</h3>
+          <p className="pre-line">{result.notes || "Analisis lamaran sudah siap."}</p>
         </div>
       </div>
 
       <div className="result-grid two-result-columns">
-        <ChipBlock title="Skills Matched" items={result.skillsMatched} tone="success" />
-        <ChipBlock title="Skills Missing" items={result.skillsMissing} tone="warning" />
+        <ChipBlock title="Keahlian yang Cocok" items={result.skillsMatched} tone="success" />
+        <ChipBlock title="Keahlian yang Belum Ada" items={result.skillsMissing} tone="warning" />
       </div>
 
       <ImprovementBlock items={result.cvImprovement} />
@@ -246,7 +246,7 @@ export default function ResultPreview({ result, copyStatus, fileRefreshStatus, o
         {activeTab === "email" ? (
           <div className="editable-message-grid">
             <label className="field edit-field">
-              <span>Subject</span>
+              <span>Subjek</span>
               <input value={result.emailApplication?.subject || ""} onChange={(event) => updateEmailField("subject", event.target.value)} />
             </label>
             <EditField
@@ -269,12 +269,12 @@ export default function ResultPreview({ result, copyStatus, fileRefreshStatus, o
       <div className="download-row">
         {result.docxFile && (
           <a className="primary-button" href={getDownloadUrl(result.docxFile)}>
-            Download DOCX
+            Unduh DOCX
           </a>
         )}
         {result.pdfAvailable && result.pdfFile && (
           <a className="secondary-button" href={getDownloadUrl(result.pdfFile)}>
-            Download PDF
+            Unduh PDF
           </a>
         )}
       </div>

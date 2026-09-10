@@ -1,5 +1,7 @@
 import express from "express";
 import {
+  deleteAutoApplyJob,
+  deleteAutoApplyJobs,
   getAutoApplyState,
   importAutoApplyJobs,
   prepareAutoApplyRun,
@@ -56,6 +58,24 @@ router.patch("/auto-apply/jobs/:jobId", (req, res, next) => {
   try {
     const data = updateAutoApplyJob(req.params.jobId, req.body);
     return successResponse(res, "Job updated.", data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/auto-apply/jobs", (req, res, next) => {
+  try {
+    const data = deleteAutoApplyJobs(req.body.jobIds || []);
+    return successResponse(res, "Jobs deleted.", data);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/auto-apply/jobs/:jobId", (req, res, next) => {
+  try {
+    const data = deleteAutoApplyJob(req.params.jobId);
+    return successResponse(res, "Job deleted.", data);
   } catch (error) {
     next(error);
   }

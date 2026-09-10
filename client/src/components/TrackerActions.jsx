@@ -7,7 +7,7 @@ export default function TrackerActions({ job, result }) {
 
   async function handleSave() {
     if (!result) {
-      setStatus({ type: "error", message: "Generate a result before saving." });
+      setStatus({ type: "error", message: "Buat dokumen lamaran sebelum menyimpan." });
       return;
     }
 
@@ -25,7 +25,7 @@ export default function TrackerActions({ job, result }) {
 
       setStatus({
         type: response.data.warning ? "warning" : "success",
-        message: response.data.warning || "Saved to Google Sheets."
+        message: response.data.warning || "Berhasil disimpan ke Google Sheets."
       });
     } catch (error) {
       setStatus({ type: "error", message: error.message });
@@ -38,12 +38,12 @@ export default function TrackerActions({ job, result }) {
     <section className="panel" id="tracker">
       <div className="section-heading">
         <span className="section-number">05</span>
-        <h2>Save to Tracker</h2>
+        <h2>Simpan ke Tracker</h2>
       </div>
 
       <div className="action-row">
         <button className="primary-button" type="button" onClick={handleSave} disabled={loading || !result}>
-          {loading ? "Saving..." : "Save to Tracker"}
+          {loading ? "Menyimpan..." : "Simpan ke Tracker"}
         </button>
       </div>
 

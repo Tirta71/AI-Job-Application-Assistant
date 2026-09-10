@@ -147,6 +147,26 @@ export async function updateAutoApplyJob(jobId, patch) {
   return parseResponse(response);
 }
 
+export async function deleteAutoApplyJob(jobId) {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/jobs/${encodeURIComponent(jobId)}`, {
+    method: "DELETE",
+  });
+
+  return parseResponse(response);
+}
+
+export async function deleteAutoApplyJobs(jobIds) {
+  const response = await fetch(`${API_BASE_URL}/api/auto-apply/jobs`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jobIds }),
+  });
+
+  return parseResponse(response);
+}
+
 export async function queueEligibleAutoApplyJobs(jobIds = [], { all = false } = {}) {
   const response = await fetch(`${API_BASE_URL}/api/auto-apply/queue-eligible`, {
     method: "POST",

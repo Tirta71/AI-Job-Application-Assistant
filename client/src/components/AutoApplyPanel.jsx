@@ -1,5 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  BarChart3,
+  Bookmark,
+  BriefcaseBusiness,
+  CheckSquare,
+  FileText,
+  MapPin,
+  Search,
+  Send,
+  SlidersHorizontal,
+  Star,
+  Trash2,
+  WalletCards,
+} from "lucide-react";
+import {
+  deleteAutoApplyJob,
+  deleteAutoApplyJobs,
   getAutoApplyState,
   prepareAutoApplyRun,
   queueEligibleAutoApplyJobs,
@@ -44,7 +60,6 @@ function formatSalary(value) {
 }
 
 const jobStatusOptions = ["Disimpan", "Siap Dilamar", "Sudah Dilamar"];
-const exploreStatusOptions = ["All", "Disimpan", "Siap Dilamar"];
 const applicationStatusOptions = ["All", "Sudah Dilamar"];
 const autoApplyStatusOptions = ["All", "Siap Dilamar"];
 const sourceOptions = ["All", "Glints", "JobStreet", "LinkedIn", "Company Website", "Manual"];
@@ -243,6 +258,32 @@ function formatDateTime(value) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function JobSourceLogo({ job }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const logoUrl = job.companyLogoUrl || job.logoUrl || job.logo || "";
+
+  return (
+    <div className={`job-source-mark source-${sourceClass(job.source)}`} aria-label={`Logo ${job.company || job.source || "perusahaan"}`}>
+      {logoUrl && !imageFailed ? (
+        <img src={logoUrl} alt="" loading="lazy" onError={() => setImageFailed(true)} />
+      ) : (
+        <span aria-hidden="true">{sourceMark(job.source)}</span>
+      )}
+    </div>
+  );
+}
+
+function formatRelativeTime(value) {
+  const time = new Date(value || "").getTime();
+  if (Number.isNaN(time)) return "Baru saja";
+
+  const elapsedHours = Math.max(1, Math.floor((Date.now() - time) / 3600000));
+  if (elapsedHours < 24) return `${elapsedHours} jam yang lalu`;
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${elapsedDays} hari yang lalu`;
 }
 
 function dateValue(value) {
@@ -669,9 +710,16 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   const [status, setStatus] = useState({ type: "", message: "" });
   const [scrapeReport, setScrapeReport] = useState(null);
   const [scrapeReportOpen, setScrapeReportOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedJobIds, setSelectedJobIds] = useState([]);
+  const [deletingJobs, setDeletingJobs] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedSource, setSelectedSource] = useState("All");
   const [search, setSearch] = useState("");
+  const [exploreLocation, setExploreLocation] = useState("Semua Lokasi");
+  const [exploreEmploymentType, setExploreEmploymentType] = useState("Semua Tipe");
+  const [exploreLevel, setExploreLevel] = useState("Semua Level");
+  const [exploreSort, setExploreSort] = useState("Terbaru");
   const [autoApplySection, setAutoApplySection] = useState("queue");
   const [tablePages, setTablePages] = useState({
     explore: 1,
@@ -680,6 +728,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   });
 
   const counts = useMemo(() => countByStatus(state.jobs || []), [state.jobs]);
+  const autoApplyActive = ["starting", "running"].includes(normalizeStatus(state.automationRun?.status));
   const applicationJobs = useMemo(() => sortNewestAppliedFirst((state.jobs || []).filter(isApplication)), [state.jobs]);
   const readyJobs = useMemo(() => (state.jobs || []).filter((job) => job.pipelineStatus === "Siap Dilamar"), [state.jobs]);
   const readyJobsForSelectedSource = useMemo(
@@ -699,16 +748,36 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     );
   }, [state.jobs]);
 
+  const exploreLocationOptions = useMemo(
+    () => ["Semua Lokasi", ...new Set(exploreJobs.map((job) => job.location).filter(Boolean))],
+    [exploreJobs]
+  );
+  const exploreEmploymentOptions = useMemo(
+    () => ["Semua Tipe", ...new Set(exploreJobs.map((job) => job.employmentType).filter(Boolean))],
+    [exploreJobs]
+  );
+  const responseCount = useMemo(
+    () => applicationJobs.filter((job) => job.responseStatus && !/belum ada|menunggu/i.test(job.responseStatus)).length,
+    [applicationJobs]
+  );
+
   const filteredExploreJobs = useMemo(() => {
     const query = search.trim().toLowerCase();
-    const activeStatus = selectedStatusFor(exploreStatusOptions, selectedStatus);
 
-    return exploreJobs.filter((job) => {
-      const statusMatch = activeStatus === "All" || job.pipelineStatus === activeStatus;
-      const sourceMatch = selectedSource === "All" || job.source === selectedSource;
-      return statusMatch && sourceMatch && matchesJobSearch(job, query);
+    const filteredJobs = exploreJobs.filter((job) => {
+      const locationMatch = exploreLocation === "Semua Lokasi" || job.location === exploreLocation;
+      const employmentMatch = exploreEmploymentType === "Semua Tipe" || job.employmentType === exploreEmploymentType;
+      const detectedLevel = job.experienceLevel || job.seniorityLevel || "";
+      const levelMatch = exploreLevel === "Semua Level" || normalizeStatus(detectedLevel).includes(normalizeStatus(exploreLevel.replace(" Level", "")));
+      return locationMatch && employmentMatch && levelMatch && matchesJobSearch(job, query);
     });
-  }, [exploreJobs, selectedStatus, selectedSource, search]);
+
+    return [...filteredJobs].sort((first, second) => {
+      if (exploreSort === "A-Z") return String(first.jobTitle || "").localeCompare(String(second.jobTitle || ""));
+      if (exploreSort === "Gaji Tertinggi") return String(second.salaryRaw || "").localeCompare(String(first.salaryRaw || ""), undefined, { numeric: true });
+      return dateValue(second.createdAt || second.updatedAt) - dateValue(first.createdAt || first.updatedAt);
+    });
+  }, [exploreJobs, search, exploreLocation, exploreEmploymentType, exploreLevel, exploreSort]);
 
   const filteredApplicationJobs = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -750,6 +819,8 @@ export default function AutoApplyPanel({ view = "jobs" }) {
 
   useEffect(() => {
     setStatus({ type: "", message: "" });
+    setSelectionMode(false);
+    setSelectedJobIds([]);
   }, [view]);
 
   useEffect(() => {
@@ -769,6 +840,8 @@ export default function AutoApplyPanel({ view = "jobs" }) {
       applications: 1,
       autoApply: 1,
     });
+    setSelectionMode(false);
+    setSelectedJobIds([]);
   }, [selectedStatus, selectedSource, search]);
 
   function updateAnswerBankField(event) {
@@ -1025,7 +1098,31 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     );
   }
 
-  function renderSummary() {
+  function renderSummary(variant = "default") {
+    if (variant === "explore") {
+      const metrics = [
+        { Icon: BriefcaseBusiness, label: "Total Lowongan", value: state.jobs?.length || 0, note: "data saat ini" },
+        { Icon: FileText, label: "Disimpan", value: counts.Disimpan || 0, note: "siap ditinjau" },
+        { Icon: Send, label: "Sudah Dilamar", value: counts["Sudah Dilamar"] || 0, note: "lamaran terkirim" },
+        { Icon: Star, label: "Respons", value: responseCount, note: "respons diterima" },
+      ];
+
+      return (
+        <div className="auto-summary-grid explore-summary-grid">
+          {metrics.map(({ Icon, ...metric }) => (
+            <div className="metric-card explore-metric-card" key={metric.label}>
+              <span className="metric-icon" aria-hidden="true"><Icon size={25} strokeWidth={1.8} /></span>
+              <div className="metric-content">
+                <small>{metric.label}</small>
+                <strong>{metric.value}</strong>
+                <em><b>↗</b> {metric.note}</em>
+              </div>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     return (
       <div className="auto-summary-grid">
         <div className="metric-card">
@@ -1083,6 +1180,92 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     );
   }
 
+  function toggleJobSelection(jobId) {
+    setSelectedJobIds((current) =>
+      current.includes(jobId)
+        ? current.filter((selectedId) => selectedId !== jobId)
+        : [...current, jobId]
+    );
+  }
+
+  function closeSelectionMode() {
+    setSelectionMode(false);
+    setSelectedJobIds([]);
+  }
+
+  async function handleDeleteJob(job) {
+    const title = job.jobTitle || "lowongan ini";
+    if (!window.confirm(`Hapus ${title}? Lowongan yang dihapus tidak dapat dikembalikan.`)) return;
+
+    try {
+      setDeletingJobs(true);
+      const response = await deleteAutoApplyJob(job.id);
+      setState(response.data);
+      setSelectedJobIds((current) => current.filter((jobId) => jobId !== job.id));
+      setStatus({ type: "success", message: `Lowongan ${title} berhasil dihapus.` });
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    } finally {
+      setDeletingJobs(false);
+    }
+  }
+
+  async function handleDeleteSelected(jobIds) {
+    if (!jobIds.length) return;
+    if (!window.confirm(`Hapus ${jobIds.length} lowongan terpilih? Tindakan ini tidak dapat dibatalkan.`)) return;
+
+    try {
+      setDeletingJobs(true);
+      const response = await deleteAutoApplyJobs(jobIds);
+      setState(response.data);
+      closeSelectionMode();
+      setStatus({
+        type: "success",
+        message: `${response.data.deleteSummary.deleted} lowongan berhasil dihapus.`,
+      });
+    } catch (error) {
+      setStatus({ type: "error", message: error.message });
+    } finally {
+      setDeletingJobs(false);
+    }
+  }
+
+  function renderExploreFilters() {
+    return (
+      <div className="explore-filter-bar">
+        <label className="explore-search-field">
+          <Search className="filter-icon" aria-hidden="true" size={19} strokeWidth={1.8} />
+          <span className="sr-only">Cari lowongan</span>
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Cari posisi, perusahaan, atau kata kunci..."
+          />
+        </label>
+        <label className="explore-select-field location-filter">
+          <MapPin className="filter-icon" aria-hidden="true" size={18} strokeWidth={1.8} />
+          <span className="sr-only">Lokasi</span>
+          <SoftSelect value={exploreLocation} options={exploreLocationOptions} onValueChange={setExploreLocation} />
+        </label>
+        <label className="explore-select-field type-filter">
+          <BriefcaseBusiness className="filter-icon" aria-hidden="true" size={18} strokeWidth={1.8} />
+          <span className="sr-only">Tipe pekerjaan</span>
+          <SoftSelect value={exploreEmploymentType} options={exploreEmploymentOptions} onValueChange={setExploreEmploymentType} />
+        </label>
+        <label className="explore-select-field level-filter">
+          <BarChart3 className="filter-icon" aria-hidden="true" size={18} strokeWidth={1.8} />
+          <span className="sr-only">Level pekerjaan</span>
+          <SoftSelect value={exploreLevel} options={["Semua Level", "Entry Level", "Junior Level", "Mid Level", "Senior Level"]} onValueChange={setExploreLevel} />
+        </label>
+        <label className="explore-select-field sort-filter">
+          <SlidersHorizontal className="filter-icon" aria-hidden="true" size={18} strokeWidth={1.8} />
+          <span className="sr-only">Urutkan lowongan</span>
+          <SoftSelect value={exploreSort} options={["Terbaru", "A-Z", "Gaji Tertinggi"]} onValueChange={setExploreSort} />
+        </label>
+      </div>
+    );
+  }
+
   function renderScrapeToolbar() {
     return (
       <div className="auto-toolbar">
@@ -1114,9 +1297,51 @@ export default function AutoApplyPanel({ view = "jobs" }) {
     const startIndex = (currentPage - 1) * TABLE_PAGE_SIZE;
     const visibleJobs = jobs.slice(startIndex, startIndex + TABLE_PAGE_SIZE);
     const endIndex = Math.min(startIndex + visibleJobs.length, jobs.length);
+    const jobIds = jobs.map((job) => job.id);
+    const selectedInView = selectedJobIds.filter((jobId) => jobIds.includes(jobId));
+    const allSelected = jobIds.length > 0 && selectedInView.length === jobIds.length;
+
+    function toggleAllJobs() {
+      if (allSelected) {
+        setSelectedJobIds((current) => current.filter((jobId) => !jobIds.includes(jobId)));
+        return;
+      }
+      setSelectedJobIds((current) => [...new Set([...current, ...jobIds])]);
+    }
 
     return (
       <div className="table-block">
+        <div className={`job-selection-toolbar ${selectionMode ? "is-active" : ""}`}>
+          <div>
+            <button
+              className="selection-mode-button"
+              type="button"
+              onClick={() => selectionMode ? closeSelectionMode() : setSelectionMode(true)}
+              disabled={deletingJobs || autoApplyActive}
+              title={autoApplyActive ? "Hentikan auto apply sebelum menghapus lowongan" : undefined}
+            >
+              <CheckSquare aria-hidden="true" size={17} strokeWidth={1.8} />
+              {selectionMode ? "Batal memilih" : "Pilih lowongan"}
+            </button>
+            {selectionMode && <span>{selectedInView.length} dari {jobs.length} dipilih</span>}
+          </div>
+          {selectionMode && (
+            <div>
+              <button className="selection-all-button" type="button" onClick={toggleAllJobs} disabled={deletingJobs || autoApplyActive}>
+                {allSelected ? "Batalkan semua" : "Pilih semua hasil"}
+              </button>
+              <button
+                className="selection-delete-button"
+                type="button"
+                onClick={() => handleDeleteSelected(selectedInView)}
+                disabled={deletingJobs || autoApplyActive || !selectedInView.length}
+              >
+                <Trash2 aria-hidden="true" size={16} strokeWidth={1.8} />
+                {deletingJobs ? "Menghapus..." : `Hapus terpilih${selectedInView.length ? ` (${selectedInView.length})` : ""}`}
+              </button>
+            </div>
+          )}
+        </div>
         <div className={`job-list job-list-${mode}`}>
           {visibleJobs.map((job) => {
             const filterReasons = filterReasonsForJob(job);
@@ -1138,8 +1363,98 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                     ? "Sudah di antrean. Pantau proses di Lamar Otomatis."
                     : job.matchedQuery || "Tinjau detail lowongan sebelum masuk antrean.";
 
+            if (mode === "explore") {
+              const jobLevel = job.experienceLevel || job.seniorityLevel || "Level belum tersedia";
+              const jobDescription = String(job.jobDescription || job.notes || "Tinjau detail lowongan dan persyaratan lengkap pada halaman perusahaan.").trim();
+              const exploreStatus = normalizedJobStatus === "siap dilamar" ? "Siap Dilamar" : normalizedJobStatus === "sudah dilamar" ? "Sudah Dilamar" : "Baru";
+              const exploreStatusTone = normalizedJobStatus === "siap dilamar" ? "is-ready" : normalizedJobStatus === "sudah dilamar" ? "is-applied" : "is-new";
+
+              return (
+                <article className={`job-card job-card-explore ${selectionMode ? "is-selecting" : ""} ${selectedJobIds.includes(job.id) ? "is-selected" : ""}`} key={job.id}>
+                  {selectionMode && (
+                    <label className="job-selection-check">
+                      <input
+                        type="checkbox"
+                        checked={selectedJobIds.includes(job.id)}
+                        onChange={() => toggleJobSelection(job.id)}
+                      />
+                      <span aria-hidden="true">✓</span>
+                      <span className="sr-only">Pilih {job.jobTitle || "lowongan"}</span>
+                    </label>
+                  )}
+                  <JobSourceLogo job={job} />
+
+                  <div className="explore-job-content">
+                    {job.jobUrl ? (
+                      <a className="job-title-link" href={job.jobUrl} target="_blank" rel="noreferrer">
+                        {job.jobTitle || "Posisi belum tersedia"}
+                      </a>
+                    ) : (
+                      <strong className="job-title-link">{job.jobTitle || "Posisi belum tersedia"}</strong>
+                    )}
+                    <p className="explore-job-company">{job.company || "Perusahaan belum terbaca"}</p>
+
+                    <div className="explore-job-meta">
+                      <span><MapPin className="meta-icon" aria-hidden="true" />{job.location || "Lokasi belum tersedia"}</span>
+                      <span><BriefcaseBusiness className="meta-icon" aria-hidden="true" />{job.employmentType || "Tipe belum tersedia"}</span>
+                      <span><BarChart3 className="meta-icon" aria-hidden="true" />{jobLevel}</span>
+                      <span><WalletCards className="meta-icon" aria-hidden="true" />{formatSalary(job.salaryRaw)}</span>
+                    </div>
+
+                    <p className="explore-job-description">{jobDescription}</p>
+                    {skills.length > 0 && <JobSkills skills={skills} compact />}
+                  </div>
+
+                  <div className="explore-job-side">
+                    <div className="explore-status-row">
+                      <span className={`explore-status ${exploreStatusTone}`}><i />{exploreStatus}</span>
+                      <time>{formatRelativeTime(job.createdAt || job.updatedAt)}</time>
+                      {!selectionMode && (
+                        <button
+                          className="job-delete-icon"
+                          type="button"
+                          onClick={() => handleDeleteJob(job)}
+                          disabled={deletingJobs || autoApplyActive}
+                          aria-label={`Hapus ${job.jobTitle || "lowongan"}`}
+                          title="Hapus lowongan"
+                        >
+                          <Trash2 aria-hidden="true" size={17} strokeWidth={1.8} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="explore-card-actions">
+                      <button
+                        className="job-action explore-save-action"
+                        type="button"
+                        onClick={() => patchJob(job.id, { pipelineStatus: "Disimpan" }, "Lowongan disimpan.")}
+                      >
+                        <Bookmark aria-hidden="true" size={16} strokeWidth={1.8} />
+                        Simpan
+                      </button>
+                      {job.jobUrl ? (
+                        <a className="job-action job-action-primary" href={job.jobUrl} target="_blank" rel="noreferrer">Lamar Sekarang</a>
+                      ) : (
+                        <button className="job-action job-action-primary" type="button" onClick={() => patchJob(job.id, { pipelineStatus: "Siap Dilamar" }, "Lowongan siap dilamar.")}>Lamar Sekarang</button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            }
+
             return (
-            <article className={`job-card job-card-${mode}`} key={job.id}>
+            <article className={`job-card job-card-${mode} ${selectionMode ? "is-selecting" : ""} ${selectedJobIds.includes(job.id) ? "is-selected" : ""}`} key={job.id}>
+              {selectionMode && (
+                <label className="job-selection-check">
+                  <input
+                    type="checkbox"
+                    checked={selectedJobIds.includes(job.id)}
+                    onChange={() => toggleJobSelection(job.id)}
+                  />
+                  <span aria-hidden="true">✓</span>
+                  <span className="sr-only">Pilih {job.jobTitle || "lowongan"}</span>
+                </label>
+              )}
               <header className="job-card-header">
                 <div className={`job-source-mark source-${sourceClass(job.source)}`} aria-hidden="true">
                   {sourceMark(job.source)}
@@ -1241,6 +1556,12 @@ export default function AutoApplyPanel({ view = "jobs" }) {
                       Coba lagi
                     </button>
                   )}
+                  {!selectionMode && (
+                    <button className="job-action job-action-delete" type="button" onClick={() => handleDeleteJob(job)} disabled={deletingJobs || autoApplyActive}>
+                      <Trash2 aria-hidden="true" size={15} strokeWidth={1.8} />
+                      Hapus
+                    </button>
+                  )}
                   <details className="job-manage">
                     <summary className="job-action" aria-label="Kelola lowongan">Kelola</summary>
                     <div className="job-manage-content">
@@ -1294,19 +1615,12 @@ export default function AutoApplyPanel({ view = "jobs" }) {
               {scraping ? "Mencari lowongan..." : "+ Cari lowongan baru"}
             </button>
           </div>
-          {renderSummary()}
+          {renderSummary("explore")}
           {renderStatus()}
         </section>
 
-        <section className="panel">
-          <div className="home-results-heading">
-            <div><h2>Daftar lowongan <span className="result-count">{filteredExploreJobs.length}</span></h2></div>
-            <div className="explorer-list-actions">
-              <button className="secondary-button" type="button" onClick={handleQueueAllEligibleJobs} disabled={loading || !state.jobs?.length}>Siapkan yang lolos filter</button>
-              <button className="secondary-button" type="button" onClick={loadState} disabled={loading}>Refresh</button>
-            </div>
-          </div>
-          {renderFilters(exploreStatusOptions, "Cari posisi, perusahaan, atau keahlian")}
+        <section className="explore-results" aria-label={`${filteredExploreJobs.length} lowongan ditemukan`}>
+          {renderExploreFilters()}
           {renderJobsTable(filteredExploreJobs, "explore")}
         </section>
       </div>
@@ -1694,12 +2008,23 @@ export default function AutoApplyPanel({ view = "jobs" }) {
   function renderSources() {
     return (
       <div className="auto-apply-layout">
-        <section className="panel">
-          <div className="section-heading">
-            <span className="section-number">04</span>
+        <section className="explorer-overview" aria-labelledby="settings-title">
+          <div className="explorer-title-row">
             <div>
-              <h2>Pengaturan Sumber</h2>
-              <p className="section-subtitle">Atur portal, keyword, frekuensi scraping, dan guardrail otomatisasi.</p>
+              <h1 id="settings-title">Pengaturan</h1>
+              <p>Atur sumber lowongan, target pencarian, dan batas aman otomatisasi.</p>
+            </div>
+            <button className="primary-button" type="button" onClick={handleSaveSettings} disabled={saving}>
+              {saving ? "Menyimpan..." : "Simpan Pengaturan"}
+            </button>
+          </div>
+        </section>
+
+        <section className="panel settings-panel">
+          <div className="section-heading">
+            <div>
+              <h2>Sumber &amp; target pencarian</h2>
+              <p className="section-subtitle">Pilih portal, role, lokasi, serta batas proses per sesi.</p>
             </div>
           </div>
 
@@ -1751,7 +2076,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
               <input name="browserActBrowserId" value={state.rules?.browserActBrowserId || ""} onChange={updateRuleField} />
             </label>
             <label className="field">
-              <span>Scrape Limit</span>
+              <span>Batas Hasil per Pencarian</span>
               <SoftSelect
                 name="scrapeLimitPerRun"
                 value={state.rules?.scrapeLimitPerRun || "40"}
@@ -1760,7 +2085,7 @@ export default function AutoApplyPanel({ view = "jobs" }) {
               />
             </label>
             <label className="field">
-              <span>Auto Apply Limit</span>
+              <span>Batas Lamaran per Proses</span>
               <SoftSelect
                 name="autoApplyLimitPerRun"
                 value={state.rules?.autoApplyLimitPerRun || "5"}
@@ -1769,20 +2094,25 @@ export default function AutoApplyPanel({ view = "jobs" }) {
               />
             </label>
             <label className="field">
-              <span>Blacklist Companies</span>
+              <span>Daftar Perusahaan yang Dihindari</span>
               <input name="blacklistCompanies" value={state.rules?.blacklistCompanies || ""} onChange={updateRuleField} />
             </label>
           </div>
 
+          <div className="settings-subheading">
+            <h3>Aturan penyaringan</h3>
+            <p>Tentukan lowongan yang boleh masuk ke antrean otomatis.</p>
+          </div>
+
           <div className="rule-grid">
             {[
-              ["skipUnpaid", "Skip unpaid jobs"],
-              ["skipSeniorLead", "Skip senior/lead roles"],
-              ["skipDominantJavaGolangDotnet", "Skip dominant Java/Golang/.NET roles"],
-              ["skipOutsideTargetLocation", "Skip outside target location"],
-              ["skipWithoutCv", "Skip job jika CV tidak tersedia"],
-              ["pauseOnCaptchaOrVerification", "Skip job jika CAPTCHA/verifikasi memblokir"],
-              ["autoQueueImportedJobs", "Auto queue imported/scraped jobs"],
+              ["skipUnpaid", "Lewati lowongan tanpa gaji"],
+              ["skipSeniorLead", "Lewati posisi senior atau lead"],
+              ["skipDominantJavaGolangDotnet", "Lewati role dominan Java, Golang, atau .NET"],
+              ["skipOutsideTargetLocation", "Lewati lokasi di luar target"],
+              ["skipWithoutCv", "Lewati jika CV tidak tersedia"],
+              ["pauseOnCaptchaOrVerification", "Lewati jika CAPTCHA atau verifikasi memblokir"],
+              ["autoQueueImportedJobs", "Masukkan lowongan yang lolos ke antrean otomatis"],
             ].map(([name, label]) => (
               <label className="check-field" key={name}>
                 <input type="checkbox" name={name} checked={Boolean(state.rules?.[name])} onChange={updateRuleField} />
@@ -1791,7 +2121,8 @@ export default function AutoApplyPanel({ view = "jobs" }) {
             ))}
           </div>
 
-          <div className="action-row settings-actions">
+          <div className="action-row settings-actions settings-save-row">
+            <span>Perubahan akan digunakan pada pencarian dan proses auto apply berikutnya.</span>
             <button className="primary-button" type="button" onClick={handleSaveSettings} disabled={saving}>
               {saving ? "Menyimpan..." : "Simpan Pengaturan"}
             </button>
@@ -1799,12 +2130,11 @@ export default function AutoApplyPanel({ view = "jobs" }) {
           {renderStatus()}
         </section>
 
-        <section className="panel">
+        <section className="panel settings-panel scrape-settings-panel">
           <div className="section-heading">
-            <span className="section-number">I</span>
             <div>
-              <h2>Scraping Lowongan</h2>
-              <p className="section-subtitle">Ambil lowongan dari Glints, JobStreet, dan LinkedIn Easy Apply lalu auto queue jika lolos filter.</p>
+              <h2>Pencarian lowongan</h2>
+              <p className="section-subtitle">Ambil lowongan terbaru dari sumber aktif dan siapkan yang lolos filter.</p>
             </div>
           </div>
           {renderScrapeToolbar()}

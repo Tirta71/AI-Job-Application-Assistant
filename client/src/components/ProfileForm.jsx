@@ -1,17 +1,17 @@
 import { useState } from "react";
 
 const profileTabs = [
-  { id: "basic", label: "Basic Info" },
-  { id: "work", label: "Work" },
-  { id: "project", label: "Project" },
-  { id: "education", label: "Education" },
-  { id: "skills", label: "Skills" }
+  { id: "basic", label: "Info Dasar" },
+  { id: "work", label: "Pengalaman" },
+  { id: "project", label: "Proyek" },
+  { id: "education", label: "Pendidikan" },
+  { id: "skills", label: "Keahlian" }
 ];
 
 const basicFields = [
-  { name: "fullName", label: "Full Name", type: "text", required: true },
-  { name: "targetRole", label: "Target Role", type: "text" },
-  { name: "phone", label: "Phone", type: "tel" },
+  { name: "fullName", label: "Nama Lengkap", type: "text", required: true },
+  { name: "targetRole", label: "Posisi yang Ditargetkan", type: "text" },
+  { name: "phone", label: "Nomor Telepon", type: "tel" },
   { name: "email", label: "Email", type: "email", required: true },
   { name: "linkedinUrl", label: "LinkedIn URL", type: "url" },
   { name: "githubUrl", label: "GitHub URL", type: "url" },
@@ -19,21 +19,21 @@ const basicFields = [
 ];
 
 const workFields = [
-  { name: "workTitle", label: "Work Title" },
-  { name: "workCompanyLocation", label: "Company & Location" },
-  { name: "workDate", label: "Work Date" }
+  { name: "workTitle", label: "Jabatan" },
+  { name: "workCompanyLocation", label: "Perusahaan & Lokasi" },
+  { name: "workDate", label: "Periode Kerja" }
 ];
 
 const projectFields = [
-  { name: "projectTitle", label: "Project Title" },
-  { name: "projectInstitution", label: "Project Institution" },
-  { name: "projectDate", label: "Project Date" }
+  { name: "projectTitle", label: "Nama Proyek" },
+  { name: "projectInstitution", label: "Institusi" },
+  { name: "projectDate", label: "Periode Proyek" }
 ];
 
 const educationFields = [
-  { name: "educationSchool", label: "Education School" },
-  { name: "educationYear", label: "Education Year" },
-  { name: "educationDegree", label: "Education Degree" }
+  { name: "educationSchool", label: "Institusi Pendidikan" },
+  { name: "educationYear", label: "Tahun" },
+  { name: "educationDegree", label: "Gelar / Program Studi" }
 ];
 
 function InputField({ field, value, onChange }) {
@@ -87,11 +87,11 @@ export default function ProfileForm({ profile, onChange, onReset }) {
       <div className="section-heading">
         <span className="section-number">01</span>
         <div>
-          <h2>Profile</h2>
-          <p className="section-subtitle">Fixed-slot profile from Tirta Samara master CV.</p>
+          <h2>Profil Utama</h2>
+          <p className="section-subtitle">Data ini menjadi dasar untuk setiap CV yang disesuaikan.</p>
         </div>
         <button className="text-button section-action" type="button" onClick={onReset}>
-          Reset to Master CV
+          Pulihkan Profil Awal
         </button>
       </div>
 
@@ -116,7 +116,7 @@ export default function ProfileForm({ profile, onChange, onReset }) {
             ))}
           </div>
           <label className="field">
-            <span>Master Summary</span>
+            <span>Ringkasan Profil</span>
             <textarea name="summary" rows={4} value={profile.summary || ""} onChange={updateField} />
           </label>
         </div>
@@ -131,7 +131,7 @@ export default function ProfileForm({ profile, onChange, onReset }) {
           </div>
           {[0, 1].map((index) => (
             <label className="field" key={index}>
-              <span>{`Work Bullet ${index + 1}`}</span>
+              <span>{`Poin Pengalaman ${index + 1}`}</span>
               <textarea
                 rows={3}
                 value={profile.workBullets?.[index] || ""}
@@ -151,7 +151,7 @@ export default function ProfileForm({ profile, onChange, onReset }) {
           </div>
           {[0, 1].map((index) => (
             <label className="field" key={index}>
-              <span>{`Project Bullet ${index + 1}`}</span>
+              <span>{`Poin Proyek ${index + 1}`}</span>
               <textarea
                 rows={3}
                 value={profile.projectBullets?.[index] || ""}
@@ -171,7 +171,7 @@ export default function ProfileForm({ profile, onChange, onReset }) {
           </div>
           {[0, 1, 2].map((index) => (
             <label className="field" key={index}>
-              <span>{`Certification ${index + 1}`}</span>
+              <span>{`Sertifikasi ${index + 1}`}</span>
               <input
                 value={profile.certifications?.[index] || ""}
                 onChange={(event) => updateArrayField("certifications", index, event.target.value)}
